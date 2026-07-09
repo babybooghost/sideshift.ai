@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld("sideshift", {
 
   // Global-hotkey events into the Elmish loop.
   onToggleCapture: (cb) => ipcRenderer.on("hotkey:toggle-capture", () => cb()),
+  onNudge: (cb) => ipcRenderer.on("hotkey:nudge", (_e, dx, dy) => cb(dx, dy)),
+  openScreenPrivacy: () => ipcRenderer.invoke("open-screen-privacy"),
 
   // Provider-agnostic streaming. `req` = {provider, apiKey, model, system,
   // history:[{role,text}], userText, imageDataUrl, maxTokens}.

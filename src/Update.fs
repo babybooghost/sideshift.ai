@@ -1,8 +1,13 @@
 module SideShift.Update
 
+open Fable.Core
 open Fable.Core.JsInterop
 open Elmish
 open SideShift.Types
+
+// true for both JS null and undefined (loose equality) — for optional persisted fields.
+[<Emit("$0 == null")>]
+let private isNil (x: obj) : bool = jsNative
 
 // Warm brand-family palette so multiple widgets stay distinguishable but on-brand.
 let private palette =
@@ -59,11 +64,25 @@ let private strMode =
     | "diff" -> Diff
     | _ -> Ask
 
+let private surfaceStr =
+    function
+    | Opaque -> "opaque"
+    | Transparent -> "transparent"
+    | Translucent -> "translucent"
+
+let private strSurface =
+    function
+    | "opaque" -> Opaque
+    | "transparent" -> Transparent
+    | _ -> Translucent
+
 /// Serialize the restorable slice of the model to a plain JS object.
 let private serialize (m: Model) : obj =
     box
         {| nextId = m.NextId
            topZ = m.TopZ
+           accent = m.AccentColor
+           opacity = surfaceStr m.Opacity
            shared = m.SharedContext |> List.toArray
            widgets =
             m.Widgets
@@ -124,6 +143,8 @@ let init () : Model * Cmd<Msg> =
       AnthropicDraft = ""
       OpenRouterDraft = ""
       CriticDraft = SideShift.Api.DEFAULT_CRITIC_MODEL
+      AccentColor = "#E4571E"
+      Opacity = Translucent
       Widgets = []
       NextId = 1
       TopZ = 10
@@ -159,6 +180,8 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                 Widgets = ws |> Array.map parseWidget |> Array.toList
                 NextId = max model.NextId (unbox o?nextId: int)
                 TopZ = max model.TopZ (unbox o?topZ: int)
+                AccentColor = (if isNil o?accent then model.AccentColor else (unbox o?accent: string))
+                Opacity = (if isNil o?opacity then model.Opacity else strSurface (unbox o?opacity: string))
                 SharedContext = sh |> Array.map (fun s -> (unbox s: string)) |> Array.toList },
             Cmd.none
     | OpenSettings ->
@@ -185,6 +208,20 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
             ShowSettings = false },
         Cmd.batch (effect (fun () -> Interop.setIgnoreMouse true) :: cmds)
     | SettingsSaved -> model, Cmd.none
+    | SetAccent c ->
+        let m2 = { model with AccentColor = c }
+        m2, saveCmd m2
+    | SetOpacity o ->
+        let m2 = { model with Opacity = o }
+        m2, saveCmd m2
+    | OpenScreenPrivacy -> model, effect (fun () -> Interop.openScreenPrivacy ())
+    | NudgeFocused(dx, dy) ->
+        match model.Widgets |> List.filter (fun w -> not w.Minimized) with
+        | [] -> model, Cmd.none
+        | vis ->
+            let top = vis |> List.maxBy (fun w -> w.Z)
+            let m2 = mapWidget top.Id (fun w -> { w with PosX = w.PosX + dx; PosY = w.PosY + dy }) model
+            m2, saveCmd m2
 
     // --- capture flow ---
     | ToggleCapture ->

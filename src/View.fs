@@ -16,8 +16,24 @@ let private borderSoft = "#241E16"
 let private textPri = "#F1EADD"
 let private textMut = "#9C8F7C"
 let private textSec = "#CDBFA9"
-let private accent = "#E4571E"            // single accent
+let private accent = "var(--accent)"      // single accent, driven by --accent at the root
 let private mono = "ui-monospace, SFMono-Regular, Menlo, monospace"
+
+// Widget surface + backdrop-blur per opacity mode (Cluely-style glass).
+let private surfaceVar =
+    function
+    | Opaque -> "#16120D"
+    | Translucent -> "rgba(22,18,13,0.72)"
+    | Transparent -> "rgba(22,18,13,0.40)"
+
+let private blurVar =
+    function
+    | Opaque -> "0px"
+    | Translucent -> "13px"
+    | Transparent -> "8px"
+
+let private accentSwatches =
+    [ "#E4571E"; "#F5B23B"; "#4C86C6"; "#3FA35B"; "#8B5CF6"; "#E23B3B"; "#EC4899" ]
 
 // Brand mark (S pierced by an arrow) — the one place gradient/gold appears.
 let private markSvg =
@@ -127,6 +143,53 @@ let private settingsModal (model: Model) dispatch =
                                              style.color textPri; style.boxSizing.borderBox; style.fontSize 13; style.custom ("fontFamily", mono) ]
                             ]
                         ]
+                    ]
+                    // Appearance: accent + surface opacity
+                    Html.div [
+                        prop.style [ style.marginTop 18 ]
+                        prop.children [
+                            Html.label [ prop.style [ style.fontSize 11; style.color textMut; style.custom ("letterSpacing", "0.04em"); style.custom ("textTransform", "uppercase") ]
+                                         prop.text "Accent" ]
+                            Html.div [
+                                prop.style [ style.display.flex; style.custom ("gap", "8px"); style.marginTop 7 ]
+                                prop.children [
+                                    for c in accentSwatches ->
+                                        Html.button [
+                                            prop.onClick (fun _ -> dispatch (SetAccent c))
+                                            prop.style [ style.width 24; style.height 24; style.borderRadius 6; style.cursor.pointer
+                                                         style.custom ("background", c)
+                                                         style.custom ("border", (if model.AccentColor = c then "2px solid #FFF" else "2px solid transparent")) ]
+                                        ]
+                                ]
+                            ]
+                        ]
+                    ]
+                    Html.div [
+                        prop.style [ style.marginTop 14 ]
+                        prop.children [
+                            Html.label [ prop.style [ style.fontSize 11; style.color textMut; style.custom ("letterSpacing", "0.04em"); style.custom ("textTransform", "uppercase") ]
+                                         prop.text "Surface" ]
+                            Html.div [
+                                prop.style [ style.display.flex; style.custom ("gap", "6px"); style.marginTop 7 ]
+                                prop.children [
+                                    for (label, s) in [ "Opaque", Opaque; "Translucent", Translucent; "Transparent", Transparent ] ->
+                                        Html.button [
+                                            prop.text label
+                                            prop.onClick (fun _ -> dispatch (SetOpacity s))
+                                            prop.style [ style.custom ("flex", "1"); style.padding (7, 8); style.borderRadius 7; style.cursor.pointer; style.fontSize 12
+                                                         style.custom ("border", sprintf "1px solid %s" border)
+                                                         style.custom ("background", (if model.Opacity = s then accent else "transparent"))
+                                                         style.color (if model.Opacity = s then "#FFF" else textSec) ]
+                                        ]
+                                ]
+                            ]
+                        ]
+                    ]
+                    Html.button [
+                        prop.onClick (fun _ -> dispatch OpenScreenPrivacy)
+                        prop.text "macOS: grant Screen Recording…"
+                        prop.style [ style.marginTop 14; style.width (length.percent 100); style.padding (9, 12); style.borderRadius 8; style.cursor.pointer
+                                     style.fontSize 12; style.custom ("border", sprintf "1px solid %s" border); style.custom ("background", "transparent"); style.color textSec ]
                     ]
                     Html.div [
                         prop.style [ style.display.flex; style.custom ("gap", "9px"); style.marginTop 20 ]
@@ -346,7 +409,9 @@ let private widgetView (model: Model) (w: Widget) dispatch =
         prop.className "ss-interactive"
         prop.style [ style.position.absolute; style.custom ("left", px w.PosX); style.custom ("top", px w.PosY)
                      style.custom ("width", px w.Width); style.custom ("height", px w.Height); style.custom ("zIndex", string w.Z)
-                     style.display.flex; style.flexDirection.column; style.custom ("background", surface); style.borderRadius 12
+                     style.display.flex; style.flexDirection.column; style.borderRadius 12
+                     style.custom ("background", "var(--surface)"); style.custom ("backdropFilter", "blur(var(--sblur))")
+                     style.custom ("WebkitBackdropFilter", "blur(var(--sblur))")
                      style.custom ("border", sprintf "1px solid %s" border)
                      style.custom ("boxShadow", "0 20px 52px rgba(0,0,0,0.5)"); style.overflow.hidden ]
         yield! hoverProps
@@ -526,6 +591,9 @@ let private dock dispatch =
 // ---- root ------------------------------------------------------------------
 let view (model: Model) dispatch =
     Html.div [
+        prop.style [ style.custom ("--accent", model.AccentColor)
+                     style.custom ("--surface", surfaceVar model.Opacity)
+                     style.custom ("--sblur", blurVar model.Opacity) ]
         prop.children [
             match model.Drag, model.Resize with
             | None, None -> Html.none

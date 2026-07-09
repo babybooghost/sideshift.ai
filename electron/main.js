@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, screen, safeStorage } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, screen, safeStorage, shell } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
@@ -131,6 +131,14 @@ ipcMain.handle("load-state", () => {
   } catch { return null; }
 });
 
+// Open the macOS Screen Recording privacy pane (first-run onboarding).
+ipcMain.handle("open-screen-privacy", () => {
+  if (process.platform === "darwin") {
+    shell.openExternal("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture");
+  }
+  return { ok: true };
+});
+
 // --- IPC: chat streaming (provider-agnostic) -------------------------------
 // Each request gets an id; chunks flow back as "stream:<id>" events.
 ipcMain.on("chat-stream", async (event, req) => {
@@ -152,11 +160,26 @@ app.whenReady().then(() => {
   globalShortcut.register("CommandOrControl+Shift+Space", () => {
     if (overlay) overlay.webContents.send("hotkey:toggle-capture");
   });
-  // Hide/show the whole overlay.
-  globalShortcut.register("CommandOrControl+Shift+H", () => {
+  // Hide/show the whole overlay (Cluely-style quick hide).
+  const toggleHide = () => {
     if (!overlay) return;
     overlay.isVisible() ? overlay.hide() : overlay.show();
-  });
+  };
+  globalShortcut.register("CommandOrControl+\\", toggleHide);
+  globalShortcut.register("CommandOrControl+Shift+H", toggleHide);
+
+  // Move the focused widget with the keyboard. Cmd+Alt+Arrow (not bare Cmd+Arrow,
+  // which the OS/browsers use for navigation) so we never hijack common shortcuts.
+  const STEP = 48;
+  const nudge = (dx, dy) => {
+    if (!overlay) return;
+    if (!overlay.isVisible()) overlay.show();
+    overlay.webContents.send("hotkey:nudge", dx, dy);
+  };
+  globalShortcut.register("CommandOrControl+Alt+Left", () => nudge(-STEP, 0));
+  globalShortcut.register("CommandOrControl+Alt+Right", () => nudge(STEP, 0));
+  globalShortcut.register("CommandOrControl+Alt+Up", () => nudge(0, -STEP));
+  globalShortcut.register("CommandOrControl+Alt+Down", () => nudge(0, STEP));
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createOverlay();

@@ -12,6 +12,8 @@ let saveKey (name: string) (value: string) : JS.Promise<obj> = bridge?saveKey (n
 let loadKey (name: string) : JS.Promise<obj> = bridge?loadKey (name)
 let setIgnoreMouse (b: bool) : unit = bridge?setIgnoreMouse (b)
 let onToggleCapture (cb: unit -> unit) : unit = bridge?onToggleCapture (cb)
+let onNudge (cb: float -> float -> unit) : unit = bridge?onNudge (System.Func<float, float, unit>(cb))
+let openScreenPrivacy () : unit = bridge?openScreenPrivacy ()
 let saveState (state: obj) : JS.Promise<obj> = bridge?saveState (state)
 let loadState () : JS.Promise<obj> = bridge?loadState ()
 

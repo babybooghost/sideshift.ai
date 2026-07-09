@@ -20,7 +20,7 @@ jobs:
           # dmgbuild can't render the Finder-window background headlessly on CI,
           # so ship a zipped .app from CI; local `npm run dist:mac` still makes a .dmg.
           - os: macos-latest
-            builder: "--mac zip"
+            builder: "--mac zip --arm64 --x64"
           - os: windows-latest
             builder: "--win"
     runs-on: ${{ matrix.os }}

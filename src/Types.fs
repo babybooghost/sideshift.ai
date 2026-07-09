@@ -6,6 +6,12 @@ type WidgetMode =
     | Verify
     | Diff
 
+/// Widget-surface look, à la Cluely: solid / glassy / barely-there.
+type Surface =
+    | Opaque
+    | Translucent
+    | Transparent
+
 type ChatMsg = { Role: string; Text: string }
 
 /// A highlighted screen region + what we know about it.
@@ -51,6 +57,9 @@ type Model =
       AnthropicDraft: string
       OpenRouterDraft: string
       CriticDraft: string
+      // appearance
+      AccentColor: string
+      Opacity: Surface
       // workspace
       Widgets: Widget list
       NextId: int
@@ -74,6 +83,10 @@ type Msg =
     | CriticDraftChanged of string
     | SaveSettings
     | SettingsSaved
+    | SetAccent of string
+    | SetOpacity of Surface
+    | OpenScreenPrivacy
+    | NudgeFocused of float * float
     // capture flow
     | ToggleCapture
     | ScreenshotReady of string * float * float * float

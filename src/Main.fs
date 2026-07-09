@@ -12,6 +12,7 @@ let private subscribe (_: Model) : Sub<Msg> =
     [ [ "hotkey" ],
       fun dispatch ->
           Interop.onToggleCapture (fun () -> dispatch ToggleCapture)
+          Interop.onNudge (fun dx dy -> dispatch (NudgeFocused(dx, dy)))
           document.addEventListener (
               "keydown",
               fun e ->
