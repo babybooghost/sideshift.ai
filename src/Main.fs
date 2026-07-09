@@ -23,7 +23,8 @@ let private subscribe (_: Model) : Sub<Msg> =
                       // Esc backs out of any transient overlay state
                       dispatch CaptureCancelled
                       dispatch DismissPending
-                      dispatch CancelClose)
+                      dispatch CancelClose
+                      dispatch CloseSettings)
           { new System.IDisposable with
               member _.Dispose() = () } ]
 

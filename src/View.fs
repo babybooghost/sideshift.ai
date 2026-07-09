@@ -132,14 +132,27 @@ let private settingsModal (model: Model) dispatch =
         prop.className "ss-interactive"
         prop.style [ style.position.fixedRelativeToWindow; style.custom ("inset", "0"); style.display.flex
                      style.alignItems.center; style.justifyContent.center; style.custom ("zIndex", "5000000")
-                     style.custom ("background", "rgba(14,10,6,0.62)"); style.custom ("backdropFilter", "blur(4px)") ]
+                     style.custom ("background", "rgba(14,10,6,0.72)"); style.custom ("backdropFilter", "blur(9px)") ]
         yield! hoverProps
+        // click outside the card = close (standard modal behavior)
+        prop.onClick (fun _ -> dispatch CloseSettings)
         prop.children [
             Html.div [
+                // never taller than the screen: scrolls inside, so Save/Cancel always reachable
+                prop.onClick (fun e -> e.stopPropagation ())
                 prop.style [ style.width 440; style.custom ("background", raised); style.borderRadius 14; style.padding 24
+                             style.custom ("maxHeight", "86vh"); style.custom ("overflowY", "auto"); style.position.relative
                              style.color textPri; style.custom ("border", sprintf "1px solid %s" border)
                              style.custom ("boxShadow", shadow) ]
                 prop.children [
+                    Html.button [
+                        prop.text "✕"
+                        prop.title "Close (Esc)"
+                        prop.onClick (fun _ -> dispatch CloseSettings)
+                        prop.style [ style.position.absolute; style.top 12; style.right 14; style.custom ("border", "none")
+                                     style.custom ("background", "transparent"); style.color textMut; style.fontSize 15
+                                     style.cursor.pointer; style.padding (4, 6) ]
+                    ]
                     Html.div [
                         prop.style [ style.display.flex; style.alignItems.center; style.custom ("gap", "11px") ]
                         prop.children [
@@ -639,12 +652,13 @@ let private widgetView (model: Model) (w: Widget) dispatch =
                     ]
                 ]
             ]
-            // resize handle
+            // resize handle (large enough to actually grab)
             Html.div [
+                prop.title "Drag to resize"
                 prop.onMouseDown (fun e -> e.stopPropagation (); dispatch (StartResize w.Id))
-                prop.style [ style.position.absolute; style.right 0; style.bottom 0; style.width 15; style.height 15
+                prop.style [ style.position.absolute; style.right 0; style.bottom 0; style.width 20; style.height 20
                              style.cursor "nwse-resize"
-                             style.custom ("background", "linear-gradient(135deg, transparent 55%, " + border + " 55%)") ]
+                             style.custom ("background", "linear-gradient(135deg, transparent 52%, " + border + " 52%, " + border + " 66%, transparent 66%, transparent 74%, " + border + " 74%)") ]
             ]
             // close menu
             match model.Closing with
