@@ -13,7 +13,6 @@ bin/
 *.log
 .DS_Store
 .vite/
-build/
 # never commit secrets
 *.key
 .env
