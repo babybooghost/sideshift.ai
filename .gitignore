@@ -17,3 +17,5 @@ bin/
 *.key
 .env
 .env.local
+# real OAuth client stays local / injected from CI secrets; only the template is committed
+electron/oauth-config.json

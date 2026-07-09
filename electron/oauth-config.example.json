@@ -1,0 +1,7 @@
+{
+  "_comment": "Copy to oauth-config.json and fill in a Google 'Desktop app' OAuth client (Google Cloud Console > APIs & Services > Credentials). For an installed/desktop app the client secret is NOT confidential (PKCE secures the flow), but this file is gitignored so it is not published to the repo; CI injects the real values from the GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET repo secrets. Leave blank to disable Google sign-in (the button shows a friendly 'not provisioned' notice).",
+  "google": {
+    "clientId": "",
+    "clientSecret": ""
+  }
+}

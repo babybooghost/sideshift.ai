@@ -162,10 +162,6 @@ let init () : Model * Cmd<Msg> =
       Theme = Dark
       WebVerify = false
       GoogleEmail = None
-      GoogleId = None
-      GoogleSecret = None
-      GoogleIdDraft = ""
-      GoogleSecretDraft = ""
       GoogleBusy = false
       GoogleErr = None
       Widgets = []
@@ -182,8 +178,6 @@ let init () : Model * Cmd<Msg> =
     Cmd.batch
         [ Cmd.OfPromise.perform Interop.loadKey "anthropic" (fun r -> KeyLoaded("anthropic", keyOpt r))
           Cmd.OfPromise.perform Interop.loadKey "openrouter" (fun r -> KeyLoaded("openrouter", keyOpt r))
-          Cmd.OfPromise.perform Interop.loadKey "google-id" (fun r -> KeyLoaded("google-id", keyOpt r))
-          Cmd.OfPromise.perform Interop.loadKey "google-secret" (fun r -> KeyLoaded("google-secret", keyOpt r))
           Cmd.OfPromise.perform Interop.loadState () StateLoaded ]
 
 let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
@@ -194,8 +188,6 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
     | KeyLoaded("anthropic", k) ->
         { model with AnthropicKey = k; ShowSettings = model.ShowSettings || Option.isNone k }, Cmd.none
     | KeyLoaded("openrouter", k) -> { model with OpenRouterKey = k }, Cmd.none
-    | KeyLoaded("google-id", k) -> { model with GoogleId = k; GoogleIdDraft = defaultArg k "" }, Cmd.none
-    | KeyLoaded("google-secret", k) -> { model with GoogleSecret = k; GoogleSecretDraft = defaultArg k "" }, Cmd.none
     | KeyLoaded(_, _) -> model, Cmd.none
     | StateLoaded o ->
         if isNull o then
@@ -270,32 +262,30 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
     | SetWebVerify b ->
         let m2 = { model with WebVerify = b }
         m2, saveCmd m2
-    | GoogleIdDraftChanged s -> { model with GoogleIdDraft = s }, Cmd.none
-    | GoogleSecretDraftChanged s -> { model with GoogleSecretDraft = s }, Cmd.none
-    | SaveGoogleKeys ->
-        let id = model.GoogleIdDraft.Trim()
-        let sec = model.GoogleSecretDraft.Trim()
-        let cmds =
-            [ if id <> "" then Cmd.OfPromise.perform (fun () -> Interop.saveKey "google-id" id) () (fun _ -> SettingsSaved)
-              if sec <> "" then Cmd.OfPromise.perform (fun () -> Interop.saveKey "google-secret" sec) () (fun _ -> SettingsSaved) ]
-        { model with
-            GoogleId = (if id = "" then model.GoogleId else Some id)
-            GoogleSecret = (if sec = "" then model.GoogleSecret else Some sec) }, Cmd.batch cmds
     | DoGoogleSignIn ->
-        match model.GoogleId, model.GoogleSecret with
-        | Some id, Some sec ->
-            { model with GoogleBusy = true; GoogleErr = None },
-            Cmd.OfPromise.either
-                (fun () -> Interop.googleSignIn id sec) ()
-                (fun r ->
-                    if unbox r?ok then
-                        let p = r?profile
-                        let email = if isNil p then None else (let e = p?email in if isNil e then None else Some(string e))
-                        GoogleSignedIn(email, None)
-                    else
-                        GoogleSignedIn(None, Some(string r?error)))
-                (fun ex -> GoogleSignedIn(None, Some ex.Message))
-        | _ -> { model with GoogleErr = Some "Enter your Google OAuth Client ID + secret first, then Save." }, Cmd.none
+        { model with GoogleBusy = true; GoogleErr = None },
+        Cmd.OfPromise.either
+            (fun () -> Interop.googleSignIn ()) ()
+            (fun r ->
+                if unbox r?ok then
+                    let p = r?profile
+                    let email = if isNil p then None else (let e = p?email in if isNil e then None else Some(string e))
+                    GoogleSignedIn(email, None)
+                else
+                    GoogleSignedIn(None, Some(string r?error)))
+            (fun ex -> GoogleSignedIn(None, Some ex.Message))
+    | DoAppleSignIn ->
+        { model with GoogleErr = None },
+        Cmd.OfPromise.either
+            (fun () -> Interop.appleSignIn ()) ()
+            (fun r ->
+                if unbox r?ok then
+                    let p = r?profile
+                    let email = if isNil p then None else (let e = p?email in if isNil e then None else Some(string e))
+                    GoogleSignedIn(email, None)
+                else
+                    GoogleSignedIn(None, Some(string r?error)))
+            (fun ex -> GoogleSignedIn(None, Some ex.Message))
     | GoogleSignedIn(email, err) -> { model with GoogleBusy = false; GoogleEmail = email; GoogleErr = err }, Cmd.none
     | GoogleSignOut -> { model with GoogleEmail = None }, effect (fun () -> Interop.googleSignOut () |> ignore)
     | OpenScreenPrivacy -> model, effect (fun () -> Interop.openScreenPrivacy ())

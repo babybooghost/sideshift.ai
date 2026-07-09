@@ -149,6 +149,14 @@ ipcMain.handle("open-screen-privacy", () => {
 const GOOG_FILE = () => path.join(app.getPath("userData"), "google.refresh.enc");
 const b64url = (buf) => buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
+// Built-in OAuth client shipped with the app (a Desktop-app client id is a public
+// identifier, not a secret; PKCE secures the flow). Users never paste anything.
+let BUILTIN_OAUTH = { google: { clientId: "", clientSecret: "" } };
+try {
+  const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, "oauth-config.json"), "utf8"));
+  if (cfg && cfg.google) BUILTIN_OAUTH.google = { ...BUILTIN_OAUTH.google, ...cfg.google };
+} catch {}
+
 async function googleSignIn(clientId, clientSecret) {
   const verifier = b64url(crypto.randomBytes(48));
   const challenge = b64url(crypto.createHash("sha256").update(verifier).digest());
@@ -207,10 +215,20 @@ async function googleSignIn(clientId, clientSecret) {
   return { email: profile.email, name: profile.name, picture: profile.picture };
 }
 
-ipcMain.handle("google-signin", async (_e, { clientId, clientSecret }) => {
+ipcMain.handle("google-signin", async (_e, args) => {
+  const clientId = (args && args.clientId) || BUILTIN_OAUTH.google.clientId;
+  const clientSecret = (args && args.clientSecret) || BUILTIN_OAUTH.google.clientSecret;
+  if (!clientId)
+    return { ok: false, error: "Google sign-in isn't provisioned in this build yet. It arrives with the next release." };
   try { return { ok: true, profile: await googleSignIn(clientId, clientSecret) }; }
   catch (e) { return { ok: false, error: String(e?.message || e) }; }
 });
+
+// Sign in with Apple needs a Services ID + key from Apple's paid developer
+// program, which also unlocks notarization. Honest stub until that lands.
+ipcMain.handle("apple-signin", async () => (
+  { ok: false, error: "Apple sign-in arrives with the notarized build (it needs Apple's developer program)." }
+));
 
 ipcMain.handle("google-signout", () => {
   try { fs.existsSync(GOOG_FILE()) && fs.unlinkSync(GOOG_FILE()); } catch {}

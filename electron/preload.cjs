@@ -30,8 +30,9 @@ contextBridge.exposeInMainWorld("sideshift", {
   // Validate an API key against the provider (real network check). -> {ok, valid, status}
   validateKey: (provider, key) => ipcRenderer.invoke("validate-key", { provider, key }),
 
-  // Google Sign-In (PKCE loopback flow runs in main).
-  googleSignIn: (clientId, clientSecret) => ipcRenderer.invoke("google-signin", { clientId, clientSecret }),
+  // Sign-in (PKCE loopback flow runs in main; built-in client, nothing to paste).
+  googleSignIn: () => ipcRenderer.invoke("google-signin", {}),
+  appleSignIn: () => ipcRenderer.invoke("apple-signin"),
   googleSignOut: () => ipcRenderer.invoke("google-signout"),
 
   // Provider-agnostic streaming. `req` = {provider, apiKey, model, system,

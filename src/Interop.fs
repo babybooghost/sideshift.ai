@@ -16,7 +16,8 @@ let onNudge (cb: float -> float -> unit) : unit = bridge?onNudge (System.Func<fl
 let onOpenSettings (cb: unit -> unit) : unit = bridge?onOpenSettings (cb)
 let openScreenPrivacy () : unit = bridge?openScreenPrivacy ()
 let validateKey (provider: string) (key: string) : JS.Promise<obj> = bridge?validateKey (provider, key)
-let googleSignIn (clientId: string) (clientSecret: string) : JS.Promise<obj> = bridge?googleSignIn (clientId, clientSecret)
+let googleSignIn () : JS.Promise<obj> = bridge?googleSignIn ()
+let appleSignIn () : JS.Promise<obj> = bridge?appleSignIn ()
 let googleSignOut () : JS.Promise<obj> = bridge?googleSignOut ()
 let saveState (state: obj) : JS.Promise<obj> = bridge?saveState (state)
 let loadState () : JS.Promise<obj> = bridge?loadState ()
@@ -44,3 +45,23 @@ let cropImage (dataUrl: string) (sx: float) (sy: float) (sw: float) (sh: float) 
 
 [<Emit("navigator.clipboard.writeText($0)")>]
 let copy (s: string) : unit = jsNative
+
+/// Robust click-through. One document-level hit-test drives setIgnoreMouse: when the
+/// topmost element under the cursor sits inside a `.ss-interactive` region the overlay
+/// captures the mouse, otherwise events pass through to the app below. Runs on every
+/// pointer move (Electron forwards move events even while ignoring), so it re-evaluates
+/// the instant the drag catch-layer appears and can never get stuck click-through the
+/// way per-element mouseenter/mouseleave did.
+[<Emit("""(function(){
+  var cur = null;
+  function set(v){ if(v!==cur){ cur=v; try{ window.sideshift.setIgnoreMouse(v); }catch(e){} } }
+  function hit(x,y){
+    var el = document.elementFromPoint(x,y);
+    set(!(el && el.closest && el.closest('.ss-interactive')));
+  }
+  window.addEventListener('pointermove', function(e){ hit(e.clientX, e.clientY); }, true);
+  window.addEventListener('mousemove',   function(e){ hit(e.clientX, e.clientY); }, true);
+  window.addEventListener('pointerdown', function(e){ hit(e.clientX, e.clientY); }, true);
+  try{ window.sideshift.setIgnoreMouse(true); }catch(e){}
+})()""")>]
+let installHitTest () : unit = jsNative

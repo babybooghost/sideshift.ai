@@ -45,6 +45,17 @@ jobs:
       - name: Build renderer (Fable + Vite)
         run: npm run build
 
+      # Inject the built-in Google OAuth client from repo secrets so shipped
+      # installers have sign-in without any user-pasted keys. Skips cleanly (the
+      # button shows a friendly notice) if the secrets are not set.
+      - name: Provision OAuth client
+        shell: bash
+        env:
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+        run: |
+          node -e "const fs=require('fs');fs.writeFileSync('electron/oauth-config.json',JSON.stringify({google:{clientId:process.env.GOOGLE_OAUTH_CLIENT_ID||'',clientSecret:process.env.GOOGLE_OAUTH_CLIENT_SECRET||''}},null,2))"
+
       - name: Package installer
         run: npx electron-builder ${{ matrix.builder }} --publish never
 

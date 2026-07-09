@@ -11,6 +11,7 @@ open SideShift.View
 let private subscribe (_: Model) : Sub<Msg> =
     [ [ "hotkey" ],
       fun dispatch ->
+          Interop.installHitTest ()
           Interop.onToggleCapture (fun () -> dispatch ToggleCapture)
           Interop.onNudge (fun dx dy -> dispatch (NudgeFocused(dx, dy)))
           Interop.onOpenSettings (fun () -> dispatch OpenSettings)

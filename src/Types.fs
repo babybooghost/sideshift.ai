@@ -68,12 +68,8 @@ type Model =
       Opacity: Surface
       Theme: Theme
       WebVerify: bool
-      // Google account (identity-only until a backend exists)
+      // Account (identity-only until a backend exists; built-in OAuth client)
       GoogleEmail: string option
-      GoogleId: string option
-      GoogleSecret: string option
-      GoogleIdDraft: string
-      GoogleSecretDraft: string
       GoogleBusy: bool
       GoogleErr: string option
       // workspace
@@ -104,10 +100,8 @@ type Msg =
     | SetOpacity of Surface
     | SetTheme of Theme
     | SetWebVerify of bool
-    | GoogleIdDraftChanged of string
-    | GoogleSecretDraftChanged of string
-    | SaveGoogleKeys
     | DoGoogleSignIn
+    | DoAppleSignIn
     | GoogleSignedIn of string option * string option
     | GoogleSignOut
     | OpenScreenPrivacy

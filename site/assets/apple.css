@@ -21,7 +21,8 @@
 
 /* full-bleed hero with the orb centered behind the type */
 .applehero{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;padding:0 24px}
-#hero3d{position:absolute;inset:0;z-index:1}
+#hero3d{position:absolute;inset:0;z-index:1;overflow:hidden}
+#hero3d canvas{display:block;width:100%!important;height:100%!important}
 .applehero .inner{position:relative;z-index:3}
 .applehero .inner::before{content:"";position:absolute;inset:-16% -14%;z-index:-1;pointer-events:none;
   background:radial-gradient(58% 62% at 50% 48%, rgba(9,7,6,.86), rgba(9,7,6,.42) 58%, transparent 78%)}
@@ -55,6 +56,55 @@
 .claim-chip.on{background:var(--orange);border-color:var(--orange);color:#fff}
 .aw-fill{transition:width .9s cubic-bezier(.16,.8,.24,1)}
 .shot{transition:transform .18s ease,box-shadow .3s}
+
+/* pinned-scrub panel visuals: mock app windows + overlay widget scenes */
+.pin-visual{margin-top:clamp(22px,4vh,42px);width:min(620px,92vw);display:flex;justify-content:center;
+  opacity:0;transform:translateY(24px);transition:opacity .55s var(--ease) .12s,transform .55s var(--ease) .12s}
+.pin-panel.active .pin-visual{opacity:1;transform:none}
+.mini-win{background:linear-gradient(150deg,#171922,#101219);border:1px solid #262a36;border-radius:12px;
+  overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.mw-bar{display:flex;align-items:center;gap:5px;padding:8px 11px;border-bottom:1px solid #232734}
+.mw-bar i{width:8px;height:8px;border-radius:50%;background:#2e3342;display:inline-block}
+.mw-bar span{margin-left:6px;font-size:10.5px;color:#565c6e;font-family:var(--mono);letter-spacing:.04em}
+.mw-body{padding:14px 14px 16px;display:flex;flex-direction:column;gap:9px}
+.ln{height:8px;border-radius:4px;background:#262b39;display:block}
+.ln.hot{background:color-mix(in srgb, var(--orange) 55%, #262b39)}
+/* overlay side-widget card (the one warm object in each scene) */
+.pv-widget{background:rgba(26,21,15,.94);border:1px solid color-mix(in srgb, var(--gold) 28%, transparent);
+  border-radius:12px;padding:11px 12px;min-width:150px;box-shadow:0 18px 44px rgba(0,0,0,.5),var(--glow-o)}
+.pw-hd{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink);font-weight:600;padding-bottom:4px}
+.pw-dot{width:7px;height:7px;border-radius:4px;background:var(--orange);box-shadow:0 0 8px var(--orange)}
+.pw-msg{height:9px;border-radius:4px;background:#2c2418;margin-top:7px}
+.pw-msg.me{background:color-mix(in srgb, var(--orange) 55%, #2c2418);width:72%;margin-left:auto}
+.pw-msg.short{width:55%}
+/* panel 0: fanned desktop, widget floats above all three windows */
+.pv-desk{position:relative;width:min(580px,90vw);height:clamp(180px,26vh,240px)}
+.pv-desk .mini-win{position:absolute;width:44%}
+.pv-desk .w1{left:0;top:4%}
+.pv-desk .w3{right:0;top:0;width:38%}
+.pv-desk .w2{left:26%;top:34%;width:46%;z-index:2}
+.pv-desk .pv-widget{position:absolute;right:2%;bottom:4%;width:32%;min-width:130px;z-index:3}
+.pin-panel.active .pv-desk .pv-widget{animation:pvRise .7s var(--ease) .35s backwards}
+@keyframes pvRise{from{transform:translateY(18px);opacity:0}to{transform:none;opacity:1}}
+/* panel 1: capture box + action bar inside one window */
+.mini-win.big{position:relative;width:min(560px,90vw)}
+.pv-box{position:relative;display:flex;flex-direction:column;gap:9px;padding:11px;border:2px solid var(--orange);
+  border-radius:7px;background:color-mix(in srgb, var(--orange) 10%, transparent);
+  box-shadow:0 0 30px color-mix(in srgb, var(--orange) 38%, transparent)}
+.pin-panel.active .pv-box{animation:pvBox .8s var(--ease) .3s backwards}
+@keyframes pvBox{from{transform:scaleX(.25);transform-origin:left center;opacity:0}to{transform:none;opacity:1}}
+.pv-bar{position:absolute;right:14px;bottom:12px;display:flex;gap:2px;align-items:center;
+  background:rgba(22,18,13,.95);border:1px solid var(--line);border-radius:10px;padding:4px 6px;box-shadow:var(--glow-o)}
+.pin-panel.active .pv-bar{animation:pvRise .6s var(--ease) .55s backwards}
+.pvb{color:var(--muted);padding:5px 10px;font-size:12.5px}
+.pvb.on{background:var(--orange);color:#fff;border-radius:7px;font-weight:600}
+/* panel 2: main thread untouched, tangent lives in the side card */
+.pv-split{display:flex;gap:16px;align-items:stretch;justify-content:center}
+.pv-split .mini-win.main{width:min(340px,56vw)}
+.pv-split .pv-widget.side{width:min(190px,32vw);align-self:center}
+.pin-panel.active .pv-split .pv-widget.side{animation:pvRise .7s var(--ease) .4s backwards}
+@media (max-height:700px){.pin-visual{display:none}}
+@media (prefers-reduced-motion:reduce){.pin-visual,.pv-box,.pv-bar,.pv-widget{animation:none!important;opacity:1;transform:none;transition:none}}
 
 /* mac-open helper */
 .macfix{max-width:540px;margin:22px auto 0;text-align:left;border:1px solid var(--line);border-radius:14px;background:var(--glass2);overflow:hidden}

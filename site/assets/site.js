@@ -69,7 +69,9 @@ function hero3d(){
   function size(){
     const w = mount.clientWidth, h = mount.clientHeight || mount.offsetHeight || 600;
     renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-    renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix();
+    // updateStyle=true: without CSS sizing the retina canvas renders at 2x page
+    // width and forces horizontal scroll on the whole site
+    renderer.setSize(w,h); cam.aspect=w/h; cam.updateProjectionMatrix();
   }
   size(); window.addEventListener("resize", size);
 
@@ -277,7 +279,7 @@ function globe(){
   const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.BufferAttribute(pos,3));
   const dots=new THREE.Points(g,new THREE.PointsMaterial({size:0.03,color:0xF5B23B,transparent:true,opacity:0.85,blending:THREE.AdditiveBlending,depthWrite:false}));
   scene.add(dots);
-  function size(){ const s=mount.clientWidth; renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(s,s,false); }
+  function size(){ const s=mount.clientWidth; renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(s,s); }
   size(); window.addEventListener("resize",size);
   let t=0; (function loop(){ t+=reduced?0:0.004; wire.rotation.y=t; dots.rotation.y=t; wire.rotation.x=dots.rotation.x=0.3; renderer.render(scene,cam); requestAnimationFrame(loop); })();
 }

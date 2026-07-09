@@ -75,15 +75,29 @@ let private icoScan =
 let private icoSend =
     "<svg viewBox='0 0 24 24' width='100%' height='100%' fill='none' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M12 19V5'/><path d='M5 12l7-7 7 7'/></svg>"
 
+// Official-style provider marks for the sign-in buttons.
+let private icoGoogle =
+    "<svg viewBox='0 0 18 18' width='100%' height='100%' xmlns='http://www.w3.org/2000/svg'>"
+    + "<path fill='#4285F4' d='M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z'/>"
+    + "<path fill='#34A853' d='M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z'/>"
+    + "<path fill='#FBBC05' d='M3.97 10.72A5.4 5.4 0 0 1 3.68 9c0-.6.1-1.18.28-1.72V4.95H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.05l3.01-2.33z'/>"
+    + "<path fill='#EA4335' d='M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59A9 9 0 0 0 9 0 9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z'/></svg>"
+
+let private icoApple =
+    "<svg viewBox='0 0 24 24' width='100%' height='100%' fill='currentColor' xmlns='http://www.w3.org/2000/svg'>"
+    + "<path d='M16.36 12.76c-.02-2.05 1.68-3.03 1.75-3.08-.95-1.4-2.44-1.59-2.97-1.61-1.26-.13-2.47.74-3.11.74-.64 0-1.63-.72-2.68-.7-1.38.02-2.65.8-3.36 2.03-1.43 2.48-.37 6.15 1.03 8.16.68.99 1.49 2.09 2.56 2.05 1.03-.04 1.42-.66 2.66-.66 1.24 0 1.59.66 2.68.64 1.11-.02 1.81-1 2.49-1.99.78-1.14 1.1-2.24 1.12-2.3-.02-.01-2.15-.83-2.17-3.28z'/>"
+    + "<path d='M14.3 6.74c.57-.69.95-1.65.85-2.6-.82.03-1.8.54-2.39 1.23-.52.61-.98 1.58-.86 2.51.91.07 1.84-.46 2.4-1.14z'/></svg>"
+
 let private svgIco (markup: string) (size: int) =
     Html.span [
         prop.style [ style.display.inlineFlex; style.width size; style.height size; style.custom ("lineHeight", "0") ]
         prop.dangerouslySetInnerHTML markup
     ]
 
-let private hoverProps =
-    [ prop.onMouseEnter (fun _ -> setIgnoreMouse false)
-      prop.onMouseLeave (fun _ -> setIgnoreMouse true) ]
+// Click-through is now driven globally by Interop.installHitTest (a single document
+// hit-test), which is immune to the mid-drag mouseleave race the per-element toggle hit.
+// Kept as an empty list so existing `yield! hoverProps` call sites stay valid.
+let private hoverProps : IReactProperty list = []
 
 let private isCodey (s: string) =
     s.Contains("```") || s.Contains("@@ ") || s.Contains("\n    ") || s.StartsWith("---")
@@ -208,38 +222,27 @@ let private settingsModal (model: Model) dispatch =
                              | None ->
                                  Html.div [
                                      prop.children [
-                                         Html.input [
-                                             prop.type' "text"; prop.placeholder "Google OAuth Client ID"
-                                             prop.value model.GoogleIdDraft
-                                             prop.onChange (fun (v: string) -> dispatch (GoogleIdDraftChanged v))
-                                             prop.style [ style.width (length.percent 100); style.padding 9; style.borderRadius 8; style.marginTop 8
-                                                          style.custom ("border", sprintf "1px solid %s" border); style.custom ("background", inputBg)
-                                                          style.color textPri; style.boxSizing.borderBox; style.fontSize 12.5; style.custom ("fontFamily", mono) ]
-                                         ]
-                                         Html.input [
-                                             prop.type' "password"; prop.placeholder "Client secret"
-                                             prop.value model.GoogleSecretDraft
-                                             prop.onChange (fun (v: string) -> dispatch (GoogleSecretDraftChanged v))
-                                             prop.style [ style.width (length.percent 100); style.padding 9; style.borderRadius 8; style.marginTop 7
-                                                          style.custom ("border", sprintf "1px solid %s" border); style.custom ("background", inputBg)
-                                                          style.color textPri; style.boxSizing.borderBox; style.fontSize 12.5; style.custom ("fontFamily", mono) ]
-                                         ]
-                                         Html.div [
-                                             prop.style [ style.display.flex; style.custom ("gap", "8px"); style.marginTop 9 ]
+                                         Html.button [
+                                             prop.disabled model.GoogleBusy
+                                             prop.onClick (fun _ -> dispatch DoGoogleSignIn)
+                                             prop.style [ style.width (length.percent 100); style.marginTop 9; style.padding (10, 12); style.borderRadius 22
+                                                          style.cursor.pointer; style.fontSize 13.5; style.fontWeight 600
+                                                          style.custom ("border", "1px solid #DADCE0"); style.custom ("background", "#FFFFFF"); style.color "#1F1F1F"
+                                                          style.display.flex; style.alignItems.center; style.justifyContent.center; style.custom ("gap", "10px") ]
                                              prop.children [
-                                                 Html.button [
-                                                     prop.text "Save keys"
-                                                     prop.onClick (fun _ -> dispatch SaveGoogleKeys)
-                                                     prop.style [ style.padding (8, 12); style.borderRadius 8; style.cursor.pointer; style.fontSize 12
-                                                                  style.custom ("border", sprintf "1px solid %s" border); style.custom ("background", "transparent"); style.color textSec ]
-                                                 ]
-                                                 Html.button [
-                                                     prop.text (if model.GoogleBusy then "Opening browser…" else "Sign in with Google")
-                                                     prop.disabled model.GoogleBusy
-                                                     prop.onClick (fun _ -> dispatch DoGoogleSignIn)
-                                                     prop.style [ style.custom ("flex", "1"); style.padding (8, 12); style.borderRadius 8; style.cursor.pointer; style.fontSize 12; style.fontWeight 600
-                                                                  style.custom ("border", "none"); style.custom ("background", accent); style.color "#FFF" ]
-                                                 ]
+                                                 svgIco icoGoogle 18
+                                                 Html.span [ prop.text (if model.GoogleBusy then "Opening browser…" else "Continue with Google") ]
+                                             ]
+                                         ]
+                                         Html.button [
+                                             prop.onClick (fun _ -> dispatch DoAppleSignIn)
+                                             prop.style [ style.width (length.percent 100); style.marginTop 8; style.padding (10, 12); style.borderRadius 22
+                                                          style.cursor.pointer; style.fontSize 13.5; style.fontWeight 600
+                                                          style.custom ("border", "1px solid #000"); style.custom ("background", "#000"); style.color "#FFF"
+                                                          style.display.flex; style.alignItems.center; style.justifyContent.center; style.custom ("gap", "9px") ]
+                                             prop.children [
+                                                 svgIco icoApple 17
+                                                 Html.span [ prop.text "Continue with Apple" ]
                                              ]
                                          ]
                                      ]
@@ -248,7 +251,7 @@ let private settingsModal (model: Model) dispatch =
                              | Some e -> Html.div [ prop.style [ style.fontSize 12; style.color "#F0865A"; style.marginTop 8 ]; prop.text e ]
                              | None -> Html.none)
                             Html.div [ prop.style [ style.fontSize 11; style.color textMut; style.marginTop 8; style.lineHeight 1.5 ]
-                                       prop.text "Identity only for now — accounts/sync arrive with the managed backend. Needs a 'Desktop app' OAuth client from Google Cloud Console." ]
+                                       prop.text "One click, opens your browser. Identity only for now; accounts and sync arrive with the managed backend." ]
                         ]
                     ]
                     // Appearance: accent + surface opacity
