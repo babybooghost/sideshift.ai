@@ -1,0 +1,8 @@
+name: ci-selftest
+on:
+  workflow_dispatch: {}
+jobs:
+  ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "actions-ok"
