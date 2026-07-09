@@ -132,7 +132,9 @@ let private settingsModal (model: Model) dispatch =
         prop.className "ss-interactive"
         prop.style [ style.position.fixedRelativeToWindow; style.custom ("inset", "0"); style.display.flex
                      style.alignItems.center; style.justifyContent.center; style.custom ("zIndex", "5000000")
-                     style.custom ("background", "rgba(14,10,6,0.72)"); style.custom ("backdropFilter", "blur(9px)") ]
+                     // plain dim, no backdrop blur: a full-screen blur on a transparent
+                     // always-on-top window is a big GPU hit and makes the whole app laggy
+                     style.custom ("background", "rgba(14,10,6,0.78)") ]
         yield! hoverProps
         // click outside the card = close (standard modal behavior)
         prop.onClick (fun _ -> dispatch CloseSettings)

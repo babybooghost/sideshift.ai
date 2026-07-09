@@ -66,18 +66,22 @@ let copy (s: string) : unit = jsNative
 /// the instant the drag catch-layer appears and can never get stuck click-through the
 /// way per-element mouseenter/mouseleave did.
 [<Emit("""(function(){
-  var cur = null;
+  var cur = null, raf = 0, lx = 0, ly = 0;
   function set(v){ if(v!==cur){ cur=v; try{ window.sideshift.setIgnoreMouse(v); }catch(e){} } }
-  function hit(x,y){
-    var el = document.elementFromPoint(x,y);
+  function run(){ raf = 0;
+    var el = document.elementFromPoint(lx, ly);
     set(!(el && el.closest && el.closest('.ss-interactive')));
   }
+  // Coalesce to one hit-test per frame: Electron forwards EVERY screen-wide mouse move
+  // while click-through, so probing the DOM per event burns CPU at 120Hz and lags the UI.
+  function queue(e){ lx = e.clientX; ly = e.clientY; if(!raf) raf = requestAnimationFrame(run); }
   // Single source of truth: direct callers (Interop.setIgnoreMouse) go through the same
   // dedup so they can never desync the cache from the real OS pass-through state.
   window.__ssSetIgnore = set;
-  window.addEventListener('pointermove', function(e){ hit(e.clientX, e.clientY); }, true);
-  window.addEventListener('mousemove',   function(e){ hit(e.clientX, e.clientY); }, true);
-  window.addEventListener('pointerdown', function(e){ hit(e.clientX, e.clientY); }, true);
+  window.addEventListener('pointermove', queue, true);
+  window.addEventListener('mousemove',   queue, true);
+  // pointerdown resolves synchronously so the very first click on fresh UI still lands
+  window.addEventListener('pointerdown', function(e){ lx=e.clientX; ly=e.clientY; if(raf){ cancelAnimationFrame(raf); raf=0; } run(); }, true);
   set(true);
 })()""")>]
 let installHitTest () : unit = jsNative
