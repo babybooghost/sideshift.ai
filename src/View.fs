@@ -230,21 +230,103 @@ let private pendingBar (isCode: bool) (ax: float) (ay: float) dispatch =
         ]
     ]
 
+// ---- structured Verify rendering (confidence bar + colored claim badges) ---
+let private tagColor =
+    function
+    | "ESTABLISHED" -> "#3FA35B"
+    | "UNCERTAIN" -> "#E8912B"
+    | "LIKELY FALSE" -> "#E23B3B"
+    | "NEEDS LIVE CHECK" -> "#4C86C6"
+    | "OPINION" -> "#8A7C68"
+    | _ -> textMut
+
+let private confColor n = if n >= 70 then "#3FA35B" elif n >= 40 then "#E8912B" else "#E23B3B"
+
+let private confBar (n: int) =
+    Html.div [
+        prop.style [ style.marginBottom 9 ]
+        prop.children [
+            Html.div [
+                prop.style [ style.display.flex; style.justifyContent.spaceBetween; style.marginBottom 4 ]
+                prop.children [
+                    Html.span [ prop.style [ style.fontSize 10; style.color textMut; style.custom ("letterSpacing", "0.06em"); style.custom ("textTransform", "uppercase") ]
+                                prop.text "Confidence" ]
+                    Html.span [ prop.style [ style.fontSize 12; style.fontWeight 700; style.color (confColor n); style.custom ("fontFamily", mono) ]
+                                prop.text (sprintf "%d/100" n) ]
+                ]
+            ]
+            Html.div [
+                prop.style [ style.height 6; style.borderRadius 3; style.custom ("background", "#2A2016"); style.overflow.hidden ]
+                prop.children [ Html.div [ prop.style [ style.height 6; style.custom ("width", sprintf "%d%%" n); style.custom ("background", confColor n) ] ] ]
+            ]
+        ]
+    ]
+
+let private verifyBody (text: string) =
+    let lines = text.Replace("\r", "").Split('\n')
+    let headers = set [ "Claims:"; "From memory:"; "Check live:"; "Watch out:" ]
+    Html.div [
+        prop.children [
+            for raw in lines do
+                let line = raw.Trim()
+                if line = "" then Html.none
+                elif line.StartsWith("Confidence:") then
+                    match System.Int32.TryParse((line.Substring(line.IndexOf(':') + 1).Split('/')).[0].Trim()) with
+                    | true, n -> confBar (max 0 (min 100 n))
+                    | _ -> Html.div [ prop.style [ style.fontSize 12.5; style.color textPri ]; prop.text line ]
+                elif line.StartsWith("Verdict:") then
+                    Html.div [ prop.style [ style.fontSize 13; style.color textPri; style.fontWeight 600; style.marginBottom 9; style.lineHeight 1.45 ]
+                               prop.text (line.Substring(8).Trim()) ]
+                elif line.StartsWith("- [") && line.Contains("]") then
+                    let inside = line.Substring(line.IndexOf('[') + 1)
+                    let tag = inside.Substring(0, inside.IndexOf(']')).Trim()
+                    let rest = inside.Substring(inside.IndexOf(']') + 1).Trim()
+                    Html.div [
+                        prop.style [ style.display.flex; style.custom ("gap", "7px"); style.alignItems.flexStart; style.marginBottom 5 ]
+                        prop.children [
+                            Html.span [ prop.style [ style.fontSize 8.5; style.fontWeight 700; style.custom ("letterSpacing", "0.03em"); style.color "#FFF"
+                                                     style.custom ("background", tagColor tag); style.padding (2, 6); style.borderRadius 4
+                                                     style.custom ("whiteSpace", "nowrap"); style.custom ("flexShrink", "0"); style.marginTop 2 ]
+                                        prop.text tag ]
+                            Html.span [ prop.style [ style.fontSize 12.5; style.color textPri; style.lineHeight 1.45 ]; prop.text rest ]
+                        ]
+                    ]
+                elif headers.Contains line then
+                    Html.div [ prop.style [ style.fontSize 10; style.color textMut; style.fontWeight 700; style.custom ("letterSpacing", "0.07em")
+                                            style.custom ("textTransform", "uppercase"); style.marginTop 9; style.marginBottom 4 ]
+                               prop.text (line.TrimEnd(':')) ]
+                elif line.StartsWith("- ") then
+                    Html.div [
+                        prop.style [ style.display.flex; style.custom ("gap", "6px"); style.marginBottom 4 ]
+                        prop.children [
+                            Html.span [ prop.style [ style.color textMut; style.fontSize 12.5 ]; prop.text "•" ]
+                            Html.span [ prop.style [ style.fontSize 12.5; style.color textSec; style.lineHeight 1.45 ]; prop.text (line.Substring(2).Trim()) ]
+                        ]
+                    ]
+                else
+                    Html.div [ prop.style [ style.fontSize 12.5; style.color textPri; style.lineHeight 1.45; style.marginBottom 4 ]; prop.text line ]
+        ]
+    ]
+
 // ---- message bubble --------------------------------------------------------
-let private bubble (accentColor: string) (m: ChatMsg) =
+let private bubble (accentColor: string) (isVerify: bool) (m: ChatMsg) =
     let mine = m.Role = "user"
-    let code = (not mine) && isCodey m.Text
+    let structured = isVerify && not mine
+    let code = (not mine) && (not structured) && isCodey m.Text
+    let pv, ph = if structured then 11, 12 else 9, 11
     Html.div [
         prop.style [ style.display.flex; style.custom ("justifyContent", (if mine then "flex-end" else "flex-start")); style.marginBottom 8 ]
         prop.children [
             Html.div [
-                prop.style [ style.maxWidth (length.percent 88); style.padding (9, 11); style.borderRadius 10
-                             style.fontSize 13; style.lineHeight 1.5; style.custom ("whiteSpace", "pre-wrap"); style.custom ("wordBreak", "break-word")
+                prop.style [ style.maxWidth (length.percent (if structured then 97 else 88))
+                             style.padding (pv, ph); style.borderRadius 10
+                             style.fontSize 13; style.lineHeight 1.5
+                             style.custom ("whiteSpace", (if structured then "normal" else "pre-wrap")); style.custom ("wordBreak", "break-word")
                              style.custom ("fontFamily", (if code then mono else "inherit"))
                              style.custom ("background", (if mine then accentColor else chip))
                              style.color (if mine then "#FFF" else textPri) ]
                 prop.children [
-                    Html.text m.Text
+                    if structured then verifyBody m.Text else Html.text m.Text
                     if code then
                         Html.button [
                             prop.text "copy"
@@ -315,8 +397,8 @@ let private widgetView (model: Model) (w: Widget) dispatch =
             Html.div [
                 prop.style [ style.custom ("flex", "1"); style.overflowY.auto; style.padding 12 ]
                 prop.children [
-                    yield! (w.Messages |> List.map (bubble w.Color))
-                    if w.Streaming then bubble w.Color { Role = "assistant"; Text = (if w.StreamBuf = "" then "…" else w.StreamBuf) }
+                    yield! (w.Messages |> List.map (bubble w.Color (w.Mode = Verify)))
+                    if w.Streaming then bubble w.Color (w.Mode = Verify) { Role = "assistant"; Text = (if w.StreamBuf = "" then "…" else w.StreamBuf) }
                     match w.Error with
                     | Some e -> Html.div [ prop.style [ style.color "#F0865A"; style.fontSize 12 ]; prop.text ("Error: " + e) ]
                     | None -> Html.none
