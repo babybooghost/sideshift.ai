@@ -1,9 +1,10 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, screen, safeStorage, shell, Tray, Menu, nativeImage, systemPreferences } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, screen, safeStorage, shell, Tray, Menu, nativeImage, systemPreferences, clipboard, Notification } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
 import crypto from "node:crypto";
 import http from "node:http";
+import { execFile } from "node:child_process";
 import { streamChat } from "./providers.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -39,8 +40,14 @@ function openSettingsWindow(errMsg) {
       sandbox: false
     }
   });
+  // Dock icon only while settings is open: as an agent (no-Dock) app the overlay
+  // can join other apps' fullscreen Spaces; with a Dock icon macOS refuses.
+  if (process.platform === "darwin") { try { app.dock.show(); } catch {} }
   settingsWin.once("ready-to-show", () => { settingsWin.show(); settingsWin.focus(); });
-  settingsWin.on("closed", () => { settingsWin = null; });
+  settingsWin.on("closed", () => {
+    settingsWin = null;
+    if (process.platform === "darwin") { try { app.dock.hide(); } catch {} }
+  });
   const query = errMsg ? { settings: "1", err: errMsg } : { settings: "1" };
   if (isDev) {
     settingsWin.loadURL("http://localhost:5173/?settings=1" + (errMsg ? "&err=" + encodeURIComponent(errMsg) : ""));
@@ -358,13 +365,45 @@ ipcMain.on("chat-stream", async (event, req) => {
   }
 });
 
+// Grab the highlighted text from the frontmost app: simulate Cmd+C via System
+// Events (needs Accessibility), read the clipboard, then restore it. This is the
+// Cluely-style "read what I selected" flow — no reverse engineering, plain OS APIs.
+function grabSelection() {
+  if (process.platform === "darwin" && !systemPreferences.isTrustedAccessibilityClient(true)) {
+    openSettingsWindow("To read highlighted text, allow SideShift under System Settings > Privacy & Security > Accessibility, then press Cmd+Shift+S again.");
+    return;
+  }
+  const prev = clipboard.readText();
+  clipboard.clear();
+  execFile("osascript", ["-e", 'tell application "System Events" to keystroke "c" using {command down}'], (err) => {
+    setTimeout(() => {
+      const sel = clipboard.readText();
+      if (prev) clipboard.writeText(prev); else clipboard.clear();
+      if (err) {
+        openSettingsWindow("Could not read the selection: " + String(err.message || err));
+      } else if (sel && sel.trim()) {
+        if (overlay) { overlay.show(); overlay.webContents.send("selection-captured", sel); }
+      } else {
+        new Notification({ title: "SideShift AI", body: "No highlighted text found. Select some text, then press Cmd+Shift+S." }).show();
+      }
+    }, 320);
+  });
+}
+
 app.whenReady().then(() => {
+  // Agent app (no Dock icon): required for the overlay to float over OTHER apps'
+  // fullscreen Spaces on macOS. The tray is the permanent home; the Dock icon
+  // reappears while the settings window is open.
+  if (process.platform === "darwin") { try { app.dock.hide(); } catch {} }
+
   createOverlay();
 
   // Toggle region-capture mode in the renderer.
   globalShortcut.register("CommandOrControl+Shift+Space", () => {
     if (overlay) overlay.webContents.send("hotkey:toggle-capture");
   });
+  // Ask about the current selection (any app).
+  globalShortcut.register("CommandOrControl+Shift+S", grabSelection);
   // Hide/show the whole overlay (Cluely-style quick hide).
   const toggleHide = () => {
     if (!overlay) return;
@@ -399,6 +438,7 @@ app.whenReady().then(() => {
     tray.setToolTip("SideShift AI");
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: "Capture region", accelerator: "CommandOrControl+Shift+Space", click: capture },
+      { label: "Ask about highlighted text", accelerator: "CommandOrControl+Shift+S", click: grabSelection },
       { label: "Show / hide overlay", accelerator: "CommandOrControl+\\", click: toggleHide },
       { label: "Settings…", click: openSettings },
       { type: "separator" },

@@ -591,15 +591,25 @@ let private widgetView (model: Model) (w: Widget) dispatch =
                     ]
                 ]
             ]
-            // context thumbnail
+            // context: region thumbnail, or the highlighted text for selection captures
             Html.div [
                 prop.style [ style.padding (8, 12); style.custom ("borderBottom", sprintf "1px solid %s" borderSoft) ]
                 prop.children [
-                    Html.img [
-                        prop.src w.Capture.ImageDataUrl
-                        prop.style [ style.maxWidth (length.percent 100); style.maxHeight 88; style.borderRadius 6
-                                     style.custom ("border", sprintf "1px solid %s" border); style.display.block ]
-                    ]
+                    if w.Capture.ImageDataUrl <> "" then
+                        Html.img [
+                            prop.src w.Capture.ImageDataUrl
+                            prop.style [ style.maxWidth (length.percent 100); style.maxHeight 88; style.borderRadius 6
+                                         style.custom ("border", sprintf "1px solid %s" border); style.display.block ]
+                        ]
+                    else
+                        Html.div [
+                            prop.style [ style.maxHeight 88; style.overflowY.auto; style.fontSize 12; style.lineHeight 1.5
+                                         style.color textSec; style.custom ("background", inputBg); style.borderRadius 6
+                                         style.padding (7, 10); style.custom ("border", sprintf "1px solid %s" border)
+                                         style.custom ("borderLeft", sprintf "3px solid %s" accent)
+                                         style.custom ("whiteSpace", "pre-wrap"); style.custom ("wordBreak", "break-word") ]
+                            prop.text (if w.Capture.Text.Length > 700 then w.Capture.Text.Substring(0, 700) + "…" else w.Capture.Text)
+                        ]
                 ]
             ]
             // conversation

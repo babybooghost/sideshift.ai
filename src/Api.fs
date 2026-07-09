@@ -136,11 +136,16 @@ let buildReq provider apiKey (modelId: string) system (webGrounded: bool) (w: Wi
         w.Messages
         |> List.map (fun mm -> box {| role = mm.Role; text = mm.Text |})
         |> List.toArray
+    // Text-selection captures carry the highlighted text instead of pixels.
+    let system2 =
+        if w.Capture.Text <> "" then
+            system + "\n\nThe user highlighted this text on their screen; it is the subject of the conversation:\n<<<\n" + w.Capture.Text + "\n>>>"
+        else system
     box
         {| provider = provider
            apiKey = apiKey
            model = modelId
-           system = system
+           system = system2
            webGrounded = webGrounded
            maxTokens = (if webGrounded then 2200 else 1500)
            history = history

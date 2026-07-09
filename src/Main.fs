@@ -23,6 +23,7 @@ let private subscribe (_: Model) : Sub<Msg> =
           else
               Interop.installHitTest ()
               Interop.onToggleCapture (fun () -> dispatch ToggleCapture)
+              Interop.onSelection (fun t -> dispatch (SelectionCaptured t))
               Interop.onNudge (fun dx dy -> dispatch (NudgeFocused(dx, dy)))
               Interop.onOpenSettings (fun () -> dispatch OpenSettings)
               // live sync from the settings window

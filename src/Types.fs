@@ -20,7 +20,8 @@ type ChatMsg = { Role: string; Text: string }
 
 /// A highlighted screen region + what we know about it.
 type Capture =
-    { ImageDataUrl: string
+    { ImageDataUrl: string // "" for text-selection captures (no pixels involved)
+      Text: string         // highlighted text grabbed from the frontmost app, or ""
       // Origin rect in overlay CSS px, kept so the minimap node can hint where it came from.
       X: float
       Y: float
@@ -113,6 +114,7 @@ type Msg =
     | ToggleCapture
     | ScreenshotReady of string * float * float * float
     | CaptureFailed of string
+    | SelectionCaptured of string // highlighted text grabbed via Cmd+Shift+S
     | CaptureCancelled
     | RegionDrawn of float * float * float * float // overlay-css rect: x, y, w, h
     | RegionReady of Capture

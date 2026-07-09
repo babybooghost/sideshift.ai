@@ -129,6 +129,7 @@ let private serialize (m: Model) : obj =
                        mode = modeStr w.Mode
                        title = w.Title
                        img = w.Capture.ImageDataUrl
+                       ctext = w.Capture.Text
                        cx = w.Capture.X
                        cy = w.Capture.Y
                        cw = w.Capture.W
@@ -153,7 +154,9 @@ let private parseWidget (o: obj) : Widget =
     { Id = unbox o?id
       Mode = strMode (unbox o?mode)
       Title = unbox o?title
-      Capture = { ImageDataUrl = unbox o?img; X = unbox o?cx; Y = unbox o?cy; W = unbox o?cw; H = unbox o?ch }
+      Capture = { ImageDataUrl = unbox o?img
+                  Text = (if isNil o?ctext then "" else unbox o?ctext)
+                  X = unbox o?cx; Y = unbox o?cy; W = unbox o?cw; H = unbox o?ch }
       Messages = msgs |> Array.map (fun m -> { Role = unbox m?role; Text = unbox m?text }) |> Array.toList
       Input = unbox o?input
       Streaming = false
@@ -404,6 +407,18 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
         // surface the reason (usually macOS Screen Recording permission) in the settings window
         { model with CaptureMode = false; Screenshot = None },
         effect (fun () -> Interop.openSettingsWindow msg)
+    | SelectionCaptured txt ->
+        // Highlighted text grabbed from the frontmost app (Cmd+Shift+S): same action
+        // bar as a region capture, centered near the top, no pixels involved.
+        let t = txt.Trim()
+        if t = "" then model, Cmd.none
+        else
+            let looksCode =
+                t.Contains "{" || t.Contains ";" || t.Contains "=>" || t.Contains "</"
+                || t.Contains "def " || t.Contains "fun " || t.Contains "()"
+            let cap = { ImageDataUrl = ""; Text = t; X = 0.0; Y = 0.0; W = 0.0; H = 0.0 }
+            let ax = max 8.0 (Interop.innerWidth () / 2.0 - 150.0)
+            { model with Pending = Some(cap, ax, 96.0); PendingCode = looksCode }, Cmd.none
     | CaptureCancelled ->
         { model with CaptureMode = false; Screenshot = None }, effect (fun () -> Interop.setIgnoreMouse true)
     | RegionDrawn(x, y, w, h) ->
@@ -412,7 +427,7 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
             { model with CaptureMode = false },
             Cmd.OfPromise.either
                 (fun () -> Interop.cropImage dataUrl (x * scale) (y * scale) (w * scale) (h * scale)) ()
-                (fun png -> RegionReady { ImageDataUrl = png; X = x; Y = y; W = w; H = h })
+                (fun png -> RegionReady { ImageDataUrl = png; Text = ""; X = x; Y = y; W = w; H = h })
                 (fun _ -> CaptureCancelled)
         | _ ->
             { model with CaptureMode = false; Screenshot = None }, effect (fun () -> Interop.setIgnoreMouse true)
