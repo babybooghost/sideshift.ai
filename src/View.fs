@@ -26,11 +26,11 @@ let private markSvg =
     + "<stop offset='0' stop-color='#F8C64C'/><stop offset='1' stop-color='#E68A26'/></linearGradient>"
     + "<linearGradient id='ssA' x1='200' y1='730' x2='850' y2='235' gradientUnits='userSpaceOnUse'>"
     + "<stop offset='0' stop-color='#D8481A'/><stop offset='1' stop-color='#F5732E'/></linearGradient></defs>"
-    + "<path d='M 210 700 C 300 664 298 588 380 558 C 468 526 470 470 540 452 C 616 431 648 396 694 366' fill='none' stroke='url(#ssA)' stroke-width='44' stroke-linecap='round'/>"
+    + "<path d='M 208 700 C 300 664 298 590 380 560 C 470 527 470 470 542 452 C 636 428 690 356 812 258' fill='none' stroke='url(#ssA)' stroke-width='46' stroke-linecap='round' stroke-linejoin='round'/>"
+    + "<path d='M 742 262 L 812 258 L 806 330' fill='none' stroke='url(#ssA)' stroke-width='46' stroke-linecap='round' stroke-linejoin='round'/>"
     + "<g transform='translate(96 0) skewX(-11)'><path d='M 688 374 C 674 308 588 294 518 320 C 428 354 428 442 522 486 C 620 530 646 622 566 678 C 494 728 392 716 348 658' fill='none' stroke='url(#ssG)' stroke-width='100' stroke-linecap='round' stroke-linejoin='round'/></g>"
-    + "<path d='M 682 372 C 724 342 772 300 828 254' fill='none' stroke='url(#ssA)' stroke-width='44' stroke-linecap='round'/>"
-    + "<path d='M 828 254 L 742 268' fill='none' stroke='url(#ssA)' stroke-width='44' stroke-linecap='round'/>"
-    + "<path d='M 828 254 L 818 340' fill='none' stroke='url(#ssA)' stroke-width='44' stroke-linecap='round'/></svg>"
+    + "<path d='M 560 442 C 636 414 690 356 812 258' fill='none' stroke='url(#ssA)' stroke-width='46' stroke-linecap='round' stroke-linejoin='round'/>"
+    + "<path d='M 742 262 L 812 258 L 806 330' fill='none' stroke='url(#ssA)' stroke-width='46' stroke-linecap='round' stroke-linejoin='round'/></svg>"
 
 // Inline SVG glyphs (currentColor), so no emoji-as-icon.
 let private icoGear =
