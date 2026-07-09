@@ -1,0 +1,16 @@
+node_modules/
+dist/
+dist-fable/
+out/
+.fable/
+.claude/settings.local.json
+obj/
+bin/
+*.log
+.DS_Store
+.vite/
+build/
+# never commit secrets
+*.key
+.env
+.env.local
