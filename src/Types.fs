@@ -27,6 +27,8 @@ type Widget =
       Streaming: bool
       StreamBuf: string
       Error: string option
+      // which backend actually served this widget (for the header badge)
+      Via: string
       PosX: float
       PosY: float
       Width: float
@@ -40,9 +42,16 @@ type ClosePolicy =
     | Merge
 
 type Model =
-    { ApiKey: string option
-      ShowKeyPrompt: bool
-      KeyDraft: string
+    { // provider settings
+      AnthropicKey: string option
+      OpenRouterKey: string option
+      DefaultModel: string       // Anthropic model for Ask/ELI5/Diff (and Verify fallback)
+      CriticModel: string        // OpenRouter model used for Verify's independent critic
+      ShowSettings: bool
+      AnthropicDraft: string
+      OpenRouterDraft: string
+      CriticDraft: string
+      // workspace
       Widgets: Widget list
       NextId: int
       TopZ: int
@@ -50,15 +59,19 @@ type Model =
       Screenshot: (string * float * float * float) option // dataUrl, w, h, scale
       Pending: (Capture * float * float) option            // capture + action-bar x,y
       Drag: (int * float * float) option                   // widgetId, offsetX, offsetY
+      Resize: int option                                   // widgetId being resized
       Closing: int option                                  // widget showing merge/discard menu
       SharedContext: string list }                         // merged side-quest summaries
 
 type Msg =
-    | KeyLoaded of string option
-    | ShowKeyPrompt
-    | KeyDraftChanged of string
-    | SaveKey
-    | KeySaved
+    | KeyLoaded of string * string option // name, value
+    | OpenSettings
+    | CloseSettings
+    | AnthropicDraftChanged of string
+    | OpenRouterDraftChanged of string
+    | CriticDraftChanged of string
+    | SaveSettings
+    | SettingsSaved
     // capture flow
     | ToggleCapture
     | ScreenshotReady of string * float * float * float
@@ -70,8 +83,9 @@ type Msg =
     // widget lifecycle
     | Focus of int
     | StartDrag of int * float * float
-    | DragMove of float * float
-    | EndDrag
+    | StartResize of int
+    | PointerMove of float * float
+    | PointerUp
     | Minimize of int
     | Restore of int
     | RequestClose of int

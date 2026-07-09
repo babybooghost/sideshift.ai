@@ -8,14 +8,14 @@ open Fable.Core.JsInterop
 let private bridge : obj = jsNative
 
 let captureScreen () : JS.Promise<obj> = bridge?captureScreen ()
-let saveKey (k: string) : JS.Promise<obj> = bridge?saveKey (k)
-let loadKey () : JS.Promise<obj> = bridge?loadKey ()
+let saveKey (name: string) (value: string) : JS.Promise<obj> = bridge?saveKey (name, value)
+let loadKey (name: string) : JS.Promise<obj> = bridge?loadKey (name)
 let setIgnoreMouse (b: bool) : unit = bridge?setIgnoreMouse (b)
 let onToggleCapture (cb: unit -> unit) : unit = bridge?onToggleCapture (cb)
 
-/// streamAnthropic(req, onEvent) -> unsubscribe fn. onEvent gets {type, text|message}.
-let streamAnthropic (req: obj) (onEvent: obj -> unit) : (unit -> unit) =
-    bridge?streamAnthropic (req, onEvent)
+/// streamChat(req, onEvent) -> unsubscribe fn. onEvent gets {type, text|message}.
+let streamChat (req: obj) (onEvent: obj -> unit) : (unit -> unit) =
+    bridge?streamChat (req, onEvent)
 
 /// Crop a region out of a full-screen PNG data URL; returns a PNG data URL.
 [<Emit("""(function(dataUrl, sx, sy, sw, sh){

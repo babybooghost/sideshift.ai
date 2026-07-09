@@ -1,13 +1,11 @@
 module SideShift.Api
 
-open Fable.Core.JsInterop
 open SideShift.Types
 
-let DEFAULT_MODEL = "claude-sonnet-5"
-
-let private base64Of (dataUrl: string) =
-    let i = dataUrl.IndexOf(',')
-    if i >= 0 then dataUrl.Substring(i + 1) else dataUrl
+let DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5"
+// Cross-model critic for Verify. A DIFFERENT model than the default catches more
+// than same-model self-checking. Editable in settings.
+let DEFAULT_CRITIC_MODEL = "openai/gpt-4o"
 
 let systemFor mode (shared: string list) =
     let baseSys =
@@ -17,14 +15,11 @@ let systemFor mode (shared: string list) =
         | ELI5 ->
             "Explain the highlighted term in exactly two simple sentences, grounded in the context shown in the image. No preamble, no lists."
         | Verify ->
-            "You are an independent, skeptical fact-checker. Assess the highlighted claim in the image. Reply as: a line 'Confidence: N/100', then a short bullet list of missing nuance or likely hallucinations. If you cannot read the claim, say so."
+            "You are an independent, skeptical fact-checker looking at a claim in the attached image. You did NOT write it. Reply as: a line 'Confidence: N/100', then a short bullet list of missing nuance or likely hallucinations. If you cannot read the claim, say so."
         | Diff ->
             "The highlighted region is code. Answer the user's request as a MINIMAL git-style unified diff (--- / +++ / @@ / lines prefixed + or -). Show only changed lines. Never reprint unchanged code or whole files."
     if List.isEmpty shared then baseSys
-    else
-        baseSys
-        + "\n\nEarlier side-notes the user carried over:\n- "
-        + String.concat "\n- " shared
+    else baseSys + "\n\nEarlier side-notes the user carried over:\n- " + String.concat "\n- " shared
 
 let firstPrompt mode =
     match mode with
@@ -33,35 +28,31 @@ let firstPrompt mode =
     | Verify -> Some "Fact-check the highlighted claim and give a confidence score."
     | Diff -> Some "Review the highlighted code and suggest the fix as a diff."
 
-/// Anthropic messages array: history as text turns + current user turn with image attached.
-let private buildMessages (w: Widget) (userText: string) : obj array =
+/// Pick backend for a widget: Verify routes to the OpenRouter cross-model critic
+/// when a key is present; everything else uses Anthropic-direct.
+/// Returns (provider, apiKey, modelId, viaLabel).
+let routeFor (m: Model) (mode: WidgetMode) : (string * string * string * string) option =
+    match mode, m.OpenRouterKey, m.AnthropicKey with
+    | Verify, Some ork, _ -> Some("openrouter", ork, m.CriticModel, "critic:" + m.CriticModel)
+    | _, _, Some ak -> Some("anthropic", ak, m.DefaultModel, m.DefaultModel)
+    | _ -> None
+
+/// Neutral request the Electron provider layer shapes per-provider.
+let buildReq provider apiKey (modelId: string) system (w: Widget) (userText: string) : obj =
     let history =
         w.Messages
-        |> List.map (fun m -> box {| role = m.Role; content = m.Text |})
+        |> List.map (fun mm -> box {| role = mm.Role; text = mm.Text |})
         |> List.toArray
-
-    let imgBlock =
-        box
-            {| ``type`` = "image"
-               source =
-                {| ``type`` = "base64"
-                   media_type = "image/png"
-                   data = base64Of w.Capture.ImageDataUrl |} |}
-
-    let textBlock = box {| ``type`` = "text"; text = userText |}
-    let current = box {| role = "user"; content = [| textBlock; imgBlock |] |}
-    Array.append history [| current |]
-
-/// Build the request object consumed by Interop.streamAnthropic.
-let buildReq (apiKey: string) (shared: string list) (w: Widget) (userText: string) : obj =
     box
-        {| apiKey = apiKey
-           model = DEFAULT_MODEL
-           system = systemFor w.Mode shared
+        {| provider = provider
+           apiKey = apiKey
+           model = modelId
+           system = system
            maxTokens = 1500
-           messages = buildMessages w userText |}
+           history = history
+           userText = userText
+           imageDataUrl = w.Capture.ImageDataUrl |}
 
-/// Summarize a finished side-quest for the "Merge" flow.
 let mergeSummary (w: Widget) : string =
     let lastA =
         w.Messages

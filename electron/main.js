@@ -2,11 +2,12 @@ import { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, screen, s
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
-import { streamAnthropic } from "./anthropic.js";
+import { streamChat } from "./providers.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = process.env.NODE_ENV === "development";
-const KEY_FILE = () => path.join(app.getPath("userData"), "anthropic.key.enc");
+// Named secrets: "anthropic", "openrouter", ...
+const KEY_FILE = (name) => path.join(app.getPath("userData"), `${String(name).replace(/[^a-z0-9]/gi, "_")}.key.enc`);
 
 let overlay = null;
 
@@ -77,39 +78,36 @@ ipcMain.handle("capture-screen", async () => {
   };
 });
 
-// --- IPC: secure API key storage -------------------------------------------
-ipcMain.handle("save-key", (_e, plain) => {
+// --- IPC: secure API key storage (named) -----------------------------------
+ipcMain.handle("save-key", (_e, { name, value }) => {
   if (!safeStorage.isEncryptionAvailable()) return { ok: false, reason: "no-encryption" };
-  const enc = safeStorage.encryptString(plain);
-  fs.writeFileSync(KEY_FILE(), enc);
+  fs.writeFileSync(KEY_FILE(name), safeStorage.encryptString(value));
   return { ok: true };
 });
 
-ipcMain.handle("load-key", () => {
+ipcMain.handle("load-key", (_e, name) => {
   try {
-    if (!fs.existsSync(KEY_FILE())) return { ok: true, key: null };
-    const enc = fs.readFileSync(KEY_FILE());
-    return { ok: true, key: safeStorage.decryptString(enc) };
+    const f = KEY_FILE(name);
+    if (!fs.existsSync(f)) return { ok: true, key: null };
+    return { ok: true, key: safeStorage.decryptString(fs.readFileSync(f)) };
   } catch (e) {
     return { ok: false, reason: String(e) };
   }
 });
 
-ipcMain.handle("clear-key", () => {
-  try { fs.existsSync(KEY_FILE()) && fs.unlinkSync(KEY_FILE()); } catch {}
+ipcMain.handle("clear-key", (_e, name) => {
+  try { fs.existsSync(KEY_FILE(name)) && fs.unlinkSync(KEY_FILE(name)); } catch {}
   return { ok: true };
 });
 
-// --- IPC: Anthropic streaming ----------------------------------------------
+// --- IPC: chat streaming (provider-agnostic) -------------------------------
 // Each request gets an id; chunks flow back as "stream:<id>" events.
-ipcMain.on("anthropic-stream", async (event, { id, apiKey, model, system, messages, maxTokens }) => {
+ipcMain.on("chat-stream", async (event, req) => {
   const send = (payload) => {
-    if (!event.sender.isDestroyed()) event.sender.send(`stream:${id}`, payload);
+    if (!event.sender.isDestroyed()) event.sender.send(`stream:${req.id}`, payload);
   };
   try {
-    for await (const delta of streamAnthropic({ apiKey, model, system, messages, maxTokens })) {
-      send({ type: "delta", text: delta });
-    }
+    for await (const delta of streamChat(req)) send({ type: "delta", text: delta });
     send({ type: "done" });
   } catch (e) {
     send({ type: "error", message: String(e?.message || e) });

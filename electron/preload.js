@@ -9,21 +9,23 @@ contextBridge.exposeInMainWorld("sideshift", {
   // Screen capture (full display PNG; renderer crops the region).
   captureScreen: () => ipcRenderer.invoke("capture-screen"),
 
-  // Secure key storage.
-  saveKey: (k) => ipcRenderer.invoke("save-key", k),
-  loadKey: () => ipcRenderer.invoke("load-key"),
-  clearKey: () => ipcRenderer.invoke("clear-key"),
+  // Named secure key storage ("anthropic", "openrouter").
+  saveKey: (name, value) => ipcRenderer.invoke("save-key", { name, value }),
+  loadKey: (name) => ipcRenderer.invoke("load-key", name),
+  clearKey: (name) => ipcRenderer.invoke("clear-key", name),
 
   // Global-hotkey events into the Elmish loop.
   onToggleCapture: (cb) => ipcRenderer.on("hotkey:toggle-capture", () => cb()),
 
-  // Streaming: returns an unsubscribe fn. onEvent gets {type,text|message}.
-  streamAnthropic: (req, onEvent) => {
+  // Provider-agnostic streaming. `req` = {provider, apiKey, model, system,
+  // history:[{role,text}], userText, imageDataUrl, maxTokens}.
+  // Returns an unsubscribe fn; onEvent gets {type, text|message}.
+  streamChat: (req, onEvent) => {
     const id = `${Date.now()}-${streamSeq++}`;
     const channel = `stream:${id}`;
     const handler = (_e, payload) => onEvent(payload);
     ipcRenderer.on(channel, handler);
-    ipcRenderer.send("anthropic-stream", { ...req, id });
+    ipcRenderer.send("chat-stream", { ...req, id });
     return () => ipcRenderer.removeListener(channel, handler);
   }
 });

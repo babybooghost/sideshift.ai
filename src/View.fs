@@ -1,13 +1,11 @@
 module SideShift.View
 
-open Fable.Core.JsInterop
 open Feliz
 open SideShift.Types
 open SideShift.Interop
 
 let private px (v: float) = sprintf "%gpx" v
 
-// Toggle Electron mouse pass-through so only widgets are clickable.
 let private hoverProps =
     [ prop.onMouseEnter (fun _ -> setIgnoreMouse false)
       prop.onMouseLeave (fun _ -> setIgnoreMouse true) ]
@@ -15,8 +13,25 @@ let private hoverProps =
 let private isCodey (s: string) =
     s.Contains("```") || s.Contains("@@ ") || s.Contains("\n    ") || s.StartsWith("---")
 
-// ---- API key modal ---------------------------------------------------------
-let private keyModal (model: Model) dispatch =
+// ---- settings modal --------------------------------------------------------
+let private field (label: string) (placeholder: string) (value: string) (onChange: string -> unit) =
+    Html.div [
+        prop.style [ style.marginTop 12 ]
+        prop.children [
+            Html.label [ prop.style [ style.fontSize 12; style.custom ("color", "#9a9aad") ]; prop.text label ]
+            Html.input [
+                prop.type' "password"
+                prop.placeholder placeholder
+                prop.value value
+                prop.onChange onChange
+                prop.style [ style.width (length.percent 100); style.padding 9; style.borderRadius 8; style.marginTop 4
+                             style.custom ("border", "1px solid #33333f"); style.custom ("background", "#0e0e14")
+                             style.color "#fff"; style.boxSizing.borderBox ]
+            ]
+        ]
+    ]
+
+let private settingsModal (model: Model) dispatch =
     Html.div [
         prop.className "ss-interactive"
         prop.style [ style.position.fixedRelativeToWindow; style.custom ("inset", "0"); style.display.flex
@@ -25,29 +40,47 @@ let private keyModal (model: Model) dispatch =
         yield! hoverProps
         prop.children [
             Html.div [
-                prop.style [ style.width 380; style.custom ("background", "#16161d"); style.borderRadius 14
-                             style.padding 22; style.color "#e6e6ef"
-                             style.custom ("boxShadow", "0 20px 60px rgba(0,0,0,0.5)")
-                             style.custom ("border", "1px solid #2a2a37") ]
+                prop.style [ style.width 420; style.custom ("background", "#16161d"); style.borderRadius 14; style.padding 22
+                             style.color "#e6e6ef"; style.custom ("border", "1px solid #2a2a37")
+                             style.custom ("boxShadow", "0 20px 60px rgba(0,0,0,0.5)") ]
                 prop.children [
-                    Html.h3 [ prop.style [ style.margin 0; style.marginBottom 6 ]; prop.text "SideShift AI" ]
-                    Html.p [ prop.style [ style.custom ("color", "#9a9aad"); style.fontSize 13; style.marginTop 0 ]
-                             prop.text "Paste your Anthropic API key. Stored encrypted on this machine only." ]
-                    Html.input [
-                        prop.type' "password"
-                        prop.placeholder "sk-ant-..."
-                        prop.value model.KeyDraft
-                        prop.onChange (fun (v: string) -> dispatch (KeyDraftChanged v))
-                        prop.style [ style.width (length.percent 100); style.padding 10; style.borderRadius 8
-                                     style.custom ("border", "1px solid #33333f"); style.custom ("background", "#0e0e14")
-                                     style.color "#fff"; style.boxSizing.borderBox ]
+                    Html.h3 [ prop.style [ style.margin 0 ]; prop.text "SideShift AI · settings" ]
+                    Html.p [ prop.style [ style.custom ("color", "#9a9aad"); style.fontSize 13; style.marginTop 6 ]
+                             prop.text "Keys stored encrypted on this machine only. Anthropic runs capture/answers; OpenRouter is optional and powers Verify's independent cross-model critic." ]
+                    field "Anthropic API key (required)" "sk-ant-..." model.AnthropicDraft (fun v -> dispatch (AnthropicDraftChanged v))
+                    field "OpenRouter API key (optional)" "sk-or-..." model.OpenRouterDraft (fun v -> dispatch (OpenRouterDraftChanged v))
+                    Html.div [
+                        prop.style [ style.marginTop 12 ]
+                        prop.children [
+                            Html.label [ prop.style [ style.fontSize 12; style.custom ("color", "#9a9aad") ]
+                                         prop.text "Verify critic model (OpenRouter id)" ]
+                            Html.input [
+                                prop.type' "text"
+                                prop.placeholder "openai/gpt-4o"
+                                prop.value model.CriticDraft
+                                prop.onChange (fun (v: string) -> dispatch (CriticDraftChanged v))
+                                prop.style [ style.width (length.percent 100); style.padding 9; style.borderRadius 8; style.marginTop 4
+                                             style.custom ("border", "1px solid #33333f"); style.custom ("background", "#0e0e14")
+                                             style.color "#fff"; style.boxSizing.borderBox ]
+                            ]
+                        ]
                     ]
-                    Html.button [
-                        prop.onClick (fun _ -> dispatch SaveKey)
-                        prop.text "Save key"
-                        prop.style [ style.marginTop 12; style.width (length.percent 100); style.padding 10
-                                     style.borderRadius 8; style.custom ("border", "none"); style.custom ("background", "#6366f1")
-                                     style.color "#fff"; style.cursor.pointer; style.fontWeight 600 ]
+                    Html.div [
+                        prop.style [ style.display.flex; style.custom ("gap", "8px"); style.marginTop 16 ]
+                        prop.children [
+                            Html.button [
+                                prop.onClick (fun _ -> dispatch SaveSettings)
+                                prop.text "Save"
+                                prop.style [ style.custom ("flex", "1"); style.padding 10; style.borderRadius 8; style.custom ("border", "none")
+                                             style.custom ("background", "#6366f1"); style.color "#fff"; style.cursor.pointer; style.fontWeight 600 ]
+                            ]
+                            Html.button [
+                                prop.onClick (fun _ -> dispatch CloseSettings)
+                                prop.text "Cancel"
+                                prop.style [ style.padding 10; style.borderRadius 8; style.custom ("border", "1px solid #33333f")
+                                             style.custom ("background", "transparent"); style.color "#cfcfe0"; style.cursor.pointer ]
+                            ]
+                        ]
                     ]
                 ]
             ]
@@ -97,7 +130,7 @@ let private CaptureSelector =
         ])
 
 // ---- action bar after a region is drawn -----------------------------------
-let private pendingBar (cap: Capture) (ax: float) (ay: float) dispatch =
+let private pendingBar (ax: float) (ay: float) dispatch =
     let btn (label: string) (mode: WidgetMode) =
         Html.button [
             prop.text label
@@ -128,8 +161,8 @@ let private pendingBar (cap: Capture) (ax: float) (ay: float) dispatch =
         ]
     ]
 
-// ---- a single message bubble ----------------------------------------------
-let private bubble (m: ChatMsg) dispatch =
+// ---- message bubble --------------------------------------------------------
+let private bubble (m: ChatMsg) =
     let mine = m.Role = "user"
     let code = (not mine) && isCodey m.Text
     Html.div [
@@ -157,7 +190,7 @@ let private bubble (m: ChatMsg) dispatch =
         ]
     ]
 
-// ---- a widget panel --------------------------------------------------------
+// ---- widget panel ----------------------------------------------------------
 let private widgetView (model: Model) (w: Widget) dispatch =
     Html.div [
         prop.className "ss-interactive"
@@ -178,6 +211,10 @@ let private widgetView (model: Model) (w: Widget) dispatch =
                 prop.onMouseDown (fun e -> dispatch (StartDrag(w.Id, e.clientX - w.PosX, e.clientY - w.PosY)))
                 prop.children [
                     Html.span [ prop.style [ style.fontWeight 700; style.fontSize 13 ]; prop.text w.Title ]
+                    if w.Via <> "" then
+                        Html.span [ prop.style [ style.fontSize 10; style.custom ("opacity", "0.8")
+                                                 style.custom ("background", "rgba(0,0,0,0.25)"); style.padding (1, 6); style.borderRadius 8 ]
+                                    prop.text w.Via ]
                     Html.div [ prop.style [ style.custom ("flex", "1") ] ]
                     Html.button [
                         prop.text "—"
@@ -210,12 +247,10 @@ let private widgetView (model: Model) (w: Widget) dispatch =
             Html.div [
                 prop.style [ style.custom ("flex", "1"); style.overflowY.auto; style.padding 10 ]
                 prop.children [
-                    yield! (w.Messages |> List.map (fun m -> bubble m dispatch))
-                    if w.Streaming then
-                        bubble { Role = "assistant"; Text = (if w.StreamBuf = "" then "…" else w.StreamBuf) } dispatch
+                    yield! (w.Messages |> List.map bubble)
+                    if w.Streaming then bubble { Role = "assistant"; Text = (if w.StreamBuf = "" then "…" else w.StreamBuf) }
                     match w.Error with
-                    | Some e ->
-                        Html.div [ prop.style [ style.color "#ff6b6b"; style.fontSize 12 ]; prop.text ("Error: " + e) ]
+                    | Some e -> Html.div [ prop.style [ style.color "#ff6b6b"; style.fontSize 12 ]; prop.text ("Error: " + e) ]
                     | None -> Html.none
                 ]
             ]
@@ -245,6 +280,13 @@ let private widgetView (model: Model) (w: Widget) dispatch =
                                      style.borderRadius 8; style.width 40; style.cursor.pointer; style.fontWeight 700 ]
                     ]
                 ]
+            ]
+            // resize handle (bottom-right)
+            Html.div [
+                prop.onMouseDown (fun e -> e.stopPropagation (); dispatch (StartResize w.Id))
+                prop.style [ style.position.absolute; style.right 0; style.bottom 0; style.width 16; style.height 16
+                             style.cursor "nwse-resize"
+                             style.custom ("background", "linear-gradient(135deg, transparent 50%, " + w.Color + " 50%)") ]
             ]
             // close menu overlay
             match model.Closing with
@@ -278,7 +320,7 @@ let private widgetView (model: Model) (w: Widget) dispatch =
         ]
     ]
 
-// ---- margin minimap (minimized widgets docked on the right edge) -----------
+// ---- margin minimap --------------------------------------------------------
 let private minimap (model: Model) dispatch =
     let mins = model.Widgets |> List.filter (fun w -> w.Minimized)
     if List.isEmpty mins then Html.none
@@ -295,13 +337,13 @@ let private minimap (model: Model) dispatch =
                         prop.onClick (fun _ -> dispatch (Restore w.Id))
                         prop.style [ style.width 16; style.height 16; style.borderRadius 8; style.cursor.pointer
                                      style.custom ("background", w.Color)
-                                     style.custom ("boxShadow", sprintf "0 0 0 2px rgba(255,255,255,0.15)") ]
+                                     style.custom ("boxShadow", "0 0 0 2px rgba(255,255,255,0.15)") ]
                     ]))
             ]
         ]
 
-// ---- control dock (visible entry point besides the hotkey) -----------------
-let private dock (model: Model) dispatch =
+// ---- control dock ----------------------------------------------------------
+let private dock dispatch =
     Html.div [
         prop.className "ss-interactive"
         prop.style [ style.position.fixedRelativeToWindow; style.right 16; style.bottom 16; style.display.flex
@@ -317,9 +359,9 @@ let private dock (model: Model) dispatch =
                              style.custom ("boxShadow", "0 8px 30px rgba(99,102,241,0.5)") ]
             ]
             Html.button [
-                prop.title "API key"
+                prop.title "Settings / API keys"
                 prop.text "⚙"
-                prop.onClick (fun _ -> dispatch ShowKeyPrompt)
+                prop.onClick (fun _ -> dispatch OpenSettings)
                 prop.style [ style.custom ("border", "none"); style.custom ("background", "#20202b"); style.color "#cfcfe0"
                              style.width 40; style.height 40; style.borderRadius 20; style.cursor.pointer ]
             ]
@@ -330,29 +372,29 @@ let private dock (model: Model) dispatch =
 let view (model: Model) dispatch =
     Html.div [
         prop.children [
-            // drag catch layer
-            match model.Drag with
-            | Some _ ->
+            // pointer catch layer (drag OR resize)
+            match model.Drag, model.Resize with
+            | None, None -> Html.none
+            | _ ->
                 Html.div [
                     prop.className "ss-interactive"
                     prop.style [ style.position.fixedRelativeToWindow; style.custom ("inset", "0"); style.custom ("zIndex", "3000000") ]
-                    prop.onMouseMove (fun e -> dispatch (DragMove(e.clientX, e.clientY)))
-                    prop.onMouseUp (fun _ -> dispatch EndDrag)
+                    prop.onMouseMove (fun e -> dispatch (PointerMove(e.clientX, e.clientY)))
+                    prop.onMouseUp (fun _ -> dispatch PointerUp)
                 ]
-            | None -> Html.none
 
             yield! (model.Widgets |> List.filter (fun w -> not w.Minimized) |> List.map (fun w -> widgetView model w dispatch))
 
             minimap model dispatch
 
             match model.Pending with
-            | Some(cap, ax, ay) -> pendingBar cap ax ay dispatch
+            | Some(_, ax, ay) -> pendingBar ax ay dispatch
             | None -> Html.none
 
             if model.CaptureMode then CaptureSelector {| dispatch = dispatch |} else Html.none
 
-            dock model dispatch
+            dock dispatch
 
-            if model.ShowKeyPrompt then keyModal model dispatch else Html.none
+            if model.ShowSettings then settingsModal model dispatch else Html.none
         ]
     ]
