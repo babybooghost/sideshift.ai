@@ -11,6 +11,9 @@ directories:
 # No native modules (react is bundled by Vite); skip the rebuild step.
 npmRebuild: false
 
+# Ad-hoc sign the mac app (see build/afterPack.cjs) so Apple Silicon will run it.
+afterPack: build/afterPack.cjs
+
 # App payload. Renderer is pre-bundled by Vite into dist/; the three ESM files
 # under electron/ are loaded directly by Electron's Node runtime. No runtime
 # node_modules are needed (react/react-dom are bundled into dist by Vite).
@@ -30,9 +33,9 @@ mac:
       arch:
         - arm64
         - x64
-  # Beta: ad-hoc signature ("-"), no hardened runtime, no notarization. Ad-hoc
-  # (not fully unsigned) avoids Gatekeeper "app is damaged" on Apple Silicon.
-  identity: "-"
+  # Disable electron-builder's own signing (v25 mishandles "-"); build/afterPack.cjs
+  # applies a proper ad-hoc signature instead. No hardened runtime, no notarization.
+  identity: null
   hardenedRuntime: false
   gatekeeperAssess: false
   notarize: false
