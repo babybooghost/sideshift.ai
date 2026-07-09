@@ -10,7 +10,14 @@ let private bridge : obj = jsNative
 let captureScreen () : JS.Promise<obj> = bridge?captureScreen ()
 let saveKey (name: string) (value: string) : JS.Promise<obj> = bridge?saveKey (name, value)
 let loadKey (name: string) : JS.Promise<obj> = bridge?loadKey (name)
-let setIgnoreMouse (b: bool) : unit = bridge?setIgnoreMouse (b)
+let clearKey (name: string) : JS.Promise<obj> = bridge?clearKey (name)
+
+/// Set overlay pass-through. Routed through installHitTest's dedup cache (window.__ssSetIgnore)
+/// when available so direct callers (capture on/off, dismiss) stay in sync with the global
+/// hit-test — otherwise the cache and the real OS state desync and the overlay can strand
+/// click-through over visible UI (or capture over empty screen).
+[<Emit("(window.__ssSetIgnore ? window.__ssSetIgnore($0) : window.sideshift.setIgnoreMouse($0))")>]
+let setIgnoreMouse (b: bool) : unit = jsNative
 let onToggleCapture (cb: unit -> unit) : unit = bridge?onToggleCapture (cb)
 let onNudge (cb: float -> float -> unit) : unit = bridge?onNudge (System.Func<float, float, unit>(cb))
 let onOpenSettings (cb: unit -> unit) : unit = bridge?onOpenSettings (cb)
@@ -21,6 +28,12 @@ let appleSignIn () : JS.Promise<obj> = bridge?appleSignIn ()
 let googleSignOut () : JS.Promise<obj> = bridge?googleSignOut ()
 let saveState (state: obj) : JS.Promise<obj> = bridge?saveState (state)
 let loadState () : JS.Promise<obj> = bridge?loadState ()
+
+[<Emit("window.innerWidth")>]
+let innerWidth () : float = jsNative
+
+[<Emit("window.innerHeight")>]
+let innerHeight () : float = jsNative
 
 /// streamChat(req, onEvent) -> unsubscribe fn. onEvent gets {type, text|message}.
 let streamChat (req: obj) (onEvent: obj -> unit) : (unit -> unit) =
@@ -59,9 +72,12 @@ let copy (s: string) : unit = jsNative
     var el = document.elementFromPoint(x,y);
     set(!(el && el.closest && el.closest('.ss-interactive')));
   }
+  // Single source of truth: direct callers (Interop.setIgnoreMouse) go through the same
+  // dedup so they can never desync the cache from the real OS pass-through state.
+  window.__ssSetIgnore = set;
   window.addEventListener('pointermove', function(e){ hit(e.clientX, e.clientY); }, true);
   window.addEventListener('mousemove',   function(e){ hit(e.clientX, e.clientY); }, true);
   window.addEventListener('pointerdown', function(e){ hit(e.clientX, e.clientY); }, true);
-  try{ window.sideshift.setIgnoreMouse(true); }catch(e){}
+  set(true);
 })()""")>]
 let installHitTest () : unit = jsNative

@@ -40,9 +40,11 @@ nav{position:sticky;top:0;z-index:40;backdrop-filter:blur(14px);-webkit-backdrop
 .nav-links a:hover,.nav-links a.on{color:var(--ink)}
 .chip{font-family:var(--mono);font-size:11px;color:var(--gold);border:1px solid var(--line);
   border-radius:20px;padding:3px 10px;background:rgba(245,178,59,.06)}
-.navcta{background:var(--orange);color:#fff;font-weight:600;
+/* higher specificity than `.nav-links a` so the CTA text stays white (was reading --muted, 1.4:1) */
+.nav-links a.navcta{background:var(--orange);color:#fff;font-weight:600;
   padding:8px 16px;border-radius:20px;font-size:13px}
-.burger{display:none}
+.nav-links a.navcta:hover{color:#fff;background:#f26a2e}
+.burger{display:none;background:none;border:0;color:var(--ink);font-size:22px;cursor:pointer;line-height:1;padding:4px 8px}
 
 /* buttons */
 .btn{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:15px;
@@ -189,5 +191,11 @@ footer{border-top:1px solid var(--line2);padding:48px 0;color:var(--muted);font-
   .stats{grid-template-columns:repeat(2,1fr)}
   .tiers{grid-template-columns:1fr}
   .contact-grid{grid-template-columns:1fr}
-  .nav-links{display:none}
+  .burger{display:block}
+  /* links collapse into a dropdown panel toggled by the burger */
+  .nav-links{position:absolute;top:100%;right:clamp(20px,4vw,32px);flex-direction:column;align-items:flex-start;
+    gap:16px;padding:18px 22px;margin-left:0;border:1px solid var(--line2);border-radius:14px;
+    background:rgba(11,9,8,.97);backdrop-filter:blur(14px);box-shadow:0 24px 60px rgba(0,0,0,.6);display:none}
+  .nav-links.open{display:flex}
+  .nav-links a.navcta{align-self:stretch;text-align:center}
 }

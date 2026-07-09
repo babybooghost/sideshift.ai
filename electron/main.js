@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, screen, safeStorage, shell, Tray, Menu, nativeImage } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, screen, safeStorage, shell, Tray, Menu, nativeImage, systemPreferences } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
@@ -81,27 +81,48 @@ ipcMain.on("set-ignore-mouse", (_e, ignore) => {
 // The renderer crops the user-selected region locally, so we never ship more
 // pixels than needed and nothing leaves the machine except the final crop.
 ipcMain.handle("capture-screen", async () => {
-  const primary = screen.getPrimaryDisplay();
-  const { width, height } = primary.size;
-  const scale = primary.scaleFactor || 1;
-  const sources = await desktopCapturer.getSources({
-    types: ["screen"],
-    thumbnailSize: { width: Math.round(width * scale), height: Math.round(height * scale) }
-  });
-  const src = sources.find((s) => s.display_id === String(primary.id)) || sources[0];
-  return {
-    dataUrl: src.thumbnail.toDataURL(),
-    width: Math.round(width * scale),
-    height: Math.round(height * scale),
-    scale
-  };
+  // On macOS a denied Screen Recording permission yields either no sources or a
+  // blank thumbnail. Detect it and return a structured error so the renderer can
+  // point the user at System Settings instead of silently capturing black.
+  if (process.platform === "darwin" &&
+      typeof systemPreferences.getMediaAccessStatus === "function" &&
+      systemPreferences.getMediaAccessStatus("screen") !== "granted") {
+    return { ok: false, error: "screen-permission", message: "Screen Recording permission is off. Grant it in System Settings > Privacy & Security > Screen Recording, then reopen SideShift." };
+  }
+  try {
+    const primary = screen.getPrimaryDisplay();
+    const { width, height } = primary.size;
+    const scale = primary.scaleFactor || 1;
+    const sources = await desktopCapturer.getSources({
+      types: ["screen"],
+      thumbnailSize: { width: Math.round(width * scale), height: Math.round(height * scale) }
+    });
+    const src = sources.find((s) => s.display_id === String(primary.id)) || sources[0];
+    if (!src || src.thumbnail.isEmpty()) {
+      return { ok: false, error: "no-capture", message: "Could not read the screen. Check Screen Recording permission and try again." };
+    }
+    return {
+      ok: true,
+      dataUrl: src.thumbnail.toDataURL(),
+      width: Math.round(width * scale),
+      height: Math.round(height * scale),
+      scale
+    };
+  } catch (e) {
+    return { ok: false, error: "capture-failed", message: String(e?.message || e) };
+  }
 });
 
 // --- IPC: secure API key storage (named) -----------------------------------
 ipcMain.handle("save-key", (_e, { name, value }) => {
   if (!safeStorage.isEncryptionAvailable()) return { ok: false, reason: "no-encryption" };
-  fs.writeFileSync(KEY_FILE(name), safeStorage.encryptString(value));
-  return { ok: true };
+  try {
+    fs.writeFileSync(KEY_FILE(name), safeStorage.encryptString(value));
+    return { ok: true };
+  } catch (e) {
+    // never throw across IPC (would reject unhandled in the renderer)
+    return { ok: false, reason: "write-failed", error: String(e?.message || e) };
+  }
 });
 
 ipcMain.handle("load-key", (_e, name) => {
@@ -169,14 +190,24 @@ async function googleSignIn(clientId, clientSecret) {
     server = http.createServer((req, res) => {
       const u = new URL(req.url, redirect);
       if (u.pathname !== "/callback") { res.writeHead(404); res.end(); return; }
-      res.writeHead(200, { "content-type": "text/html" });
-      res.end("<html><body style='font-family:-apple-system,sans-serif;background:#16120D;color:#F1EADD;padding:56px'><h2>SideShift AI</h2><p>Signed in — you can close this tab.</p></body></html>");
       clearTimeout(timer);
-      server.close();
       const gotState = u.searchParams.get("state");
       const gotCode = u.searchParams.get("code");
-      if (gotState !== state || !gotCode) reject(new Error("OAuth state/code mismatch"));
-      else resolve({ code: gotCode, redirect });
+      const gotErr = u.searchParams.get("error");
+      const ok = !gotErr && !!gotCode && gotState === state;
+      // Show the page that matches what actually happened (was always "Signed in",
+      // even when the user denied consent).
+      const msg = ok
+        ? "Signed in — you can close this tab and return to SideShift."
+        : "Sign-in cancelled — nothing was changed. You can close this tab.";
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end(`<html><body style='font-family:-apple-system,sans-serif;background:#16120D;color:#F1EADD;padding:56px'><h2>SideShift AI</h2><p>${msg}</p></body></html>`);
+      server.close();
+      if (ok) resolve({ code: gotCode, redirect });
+      else reject(new Error(
+        gotErr === "access_denied" ? "Sign-in was cancelled."
+        : gotErr ? "Google returned an error: " + gotErr
+        : "OAuth state mismatch — please try again."));
     });
     server.on("error", reject);
     server.listen(0, "127.0.0.1", () => {
@@ -242,7 +273,10 @@ ipcMain.handle("validate-key", async (_e, { provider, key }) => {
     const res = provider === "openrouter"
       ? await fetch("https://openrouter.ai/api/v1/key", { headers: { authorization: `Bearer ${key}` } })
       : await fetch("https://api.anthropic.com/v1/models", { headers: { "x-api-key": key, "anthropic-version": "2023-06-01" } });
-    return { ok: true, valid: res.status >= 200 && res.status < 300, status: res.status };
+    // Only a real auth failure (401/403) means the key is bad. A 429 rate-limit or a
+    // 5xx must NOT be reported as "rejected" — treat those (and 2xx) as acceptable so a
+    // valid key is never thrown away over a transient provider hiccup.
+    return { ok: true, valid: !(res.status === 401 || res.status === 403), status: res.status };
   } catch (e) {
     return { ok: false, valid: false, status: 0, error: String(e?.message || e) };
   }

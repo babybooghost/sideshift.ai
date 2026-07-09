@@ -1,6 +1,7 @@
 module SideShift.View
 
 open Feliz
+open Fable.Core.JsInterop
 open SideShift.Types
 open SideShift.Interop
 
@@ -130,7 +131,7 @@ let private settingsModal (model: Model) dispatch =
     Html.div [
         prop.className "ss-interactive"
         prop.style [ style.position.fixedRelativeToWindow; style.custom ("inset", "0"); style.display.flex
-                     style.alignItems.center; style.justifyContent.center
+                     style.alignItems.center; style.justifyContent.center; style.custom ("zIndex", "5000000")
                      style.custom ("background", "rgba(14,10,6,0.62)"); style.custom ("backdropFilter", "blur(4px)") ]
         yield! hoverProps
         prop.children [
@@ -357,7 +358,7 @@ let private CaptureSelector =
         Html.div [
             prop.className "ss-interactive"
             prop.style [ style.position.fixedRelativeToWindow; style.custom ("inset", "0"); style.cursor "crosshair"
-                         style.custom ("background", "rgba(14,10,6,0.24)") ]
+                         style.custom ("zIndex", "4000000"); style.custom ("background", "rgba(14,10,6,0.24)") ]
             yield! hoverProps
             prop.onMouseDown (fun e -> setStart (Some(e.clientX, e.clientY)); setRect None)
             prop.onMouseMove (fun e ->
@@ -402,12 +403,14 @@ let private pendingBar (isCode: bool) (ax: float) (ay: float) dispatch =
                          style.padding (7, 11); style.cursor.pointer; style.borderRadius 6; style.fontSize 12.5
                          style.fontWeight (if primary then 600 else 500) ]
         ]
+    // keep the whole bar (~300px) on-screen regardless of where the region was drawn
+    let leftClamped = max 8.0 (min ax (max 8.0 (Interop.innerWidth () - 300.0)))
     Html.div [
         prop.className "ss-interactive"
-        prop.style [ style.position.fixedRelativeToWindow; style.custom ("left", px (min ax 1100.0))
+        prop.style [ style.position.fixedRelativeToWindow; style.custom ("left", px leftClamped)
                      style.custom ("top", px (max (ay - 46.0) 8.0)); style.display.flex; style.alignItems.center
                      style.custom ("gap", "1px"); style.custom ("background", raised); style.custom ("border", sprintf "1px solid %s" border)
-                     style.borderRadius 10; style.padding 4; style.custom ("boxShadow", shadow); style.custom ("zIndex", "2000000") ]
+                     style.borderRadius 10; style.padding 4; style.custom ("boxShadow", shadow); style.custom ("zIndex", "4500000") ]
         yield! hoverProps
         prop.children [
             Html.span [ prop.style [ style.width 14; style.height 14; style.color accent; style.marginLeft 5; style.marginRight 3 ]
@@ -616,7 +619,9 @@ let private widgetView (model: Model) (w: Widget) dispatch =
                         prop.rows 1
                         prop.onChange (fun (v: string) -> dispatch (InputChanged(w.Id, v)))
                         prop.onKeyDown (fun e ->
-                            if e.key = "Enter" && not e.shiftKey then
+                            // don't send on Shift+Enter (newline), while a reply is streaming,
+                            // or mid-IME-composition (CJK input commits with Enter)
+                            if e.key = "Enter" && not e.shiftKey && not w.Streaming && not (unbox e?isComposing) then
                                 e.preventDefault ()
                                 dispatch (Send w.Id))
                         prop.style [ style.custom ("flex", "1"); style.resize.none; style.padding 9; style.borderRadius 8
@@ -666,6 +671,13 @@ let private widgetView (model: Model) (w: Widget) dispatch =
                                                  style.color textSec; style.padding (9, 13); style.borderRadius 8; style.cursor.pointer; style.fontSize 12.5 ]
                                 ]
                             ]
+                        ]
+                        // explicit escape hatch so an accidental ✕ never forces losing the widget
+                        Html.button [
+                            prop.text "Keep it open"
+                            prop.onClick (fun _ -> dispatch CancelClose)
+                            prop.style [ style.custom ("border", "none"); style.custom ("background", "transparent"); style.color textMut
+                                         style.fontSize 12; style.cursor.pointer; style.marginTop 2; style.textDecoration.underline ]
                         ]
                     ]
                 ]

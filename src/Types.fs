@@ -109,6 +109,7 @@ type Msg =
     // capture flow
     | ToggleCapture
     | ScreenshotReady of string * float * float * float
+    | CaptureFailed of string
     | CaptureCancelled
     | RegionDrawn of float * float * float * float // overlay-css rect: x, y, w, h
     | RegionReady of Capture
@@ -124,6 +125,7 @@ type Msg =
     | Minimize of int
     | Restore of int
     | RequestClose of int
+    | CancelClose
     | CloseWith of int * ClosePolicy
     | Merged of string
     // chat

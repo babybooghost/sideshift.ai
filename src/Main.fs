@@ -19,7 +19,11 @@ let private subscribe (_: Model) : Sub<Msg> =
               "keydown",
               fun e ->
                   let ke = e :?> Browser.Types.KeyboardEvent
-                  if ke.key = "Escape" then dispatch CaptureCancelled)
+                  if ke.key = "Escape" then
+                      // Esc backs out of any transient overlay state
+                      dispatch CaptureCancelled
+                      dispatch DismissPending
+                      dispatch CancelClose)
           { new System.IDisposable with
               member _.Dispose() = () } ]
 

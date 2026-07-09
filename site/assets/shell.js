@@ -9,12 +9,12 @@ const nav = `<nav><div class="navin">
   <a class="brand" href="index.html"><span class="m">${MARK}</span> SIDESHIFT <span class="chip">v0.1.2</span></a>
   <button class="burger" id="burger" aria-label="Menu">☰</button>
   <div class="nav-links">
-    ${link("index.html#features", "Features", "features")}
+    ${link("index.html", "Features", "features")}
     ${link("pricing.html", "Pricing", "pricing")}
     ${link("marketplace.html", "Marketplace", "marketplace")}
     ${link("case-studies.html", "Case studies", "case")}
     ${link("contact.html", "Contact", "contact")}
-    <a class="navcta" href="index.html#download">Download</a>
+    <a class="navcta" href="index.html#get">Download</a>
   </div></div></nav>`;
 
 const footer = `<footer><div class="wrap footin">

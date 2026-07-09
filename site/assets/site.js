@@ -255,8 +255,10 @@ function tilts(){
 }
 
 /* ---------- mobile nav toggle ---------- */
-function nav(){ const b=document.getElementById("burger"), l=document.querySelector(".nav-links"); if(!b) return;
-  b.addEventListener("click",()=>{ l.style.display = l.style.display==="flex"?"none":"flex"; }); }
+function nav(){ const b=document.getElementById("burger"), l=document.querySelector(".nav-links"); if(!b||!l) return;
+  b.addEventListener("click",()=> l.classList.toggle("open"));
+  // close after picking a destination
+  l.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>l.classList.remove("open"))); }
 
 /* ---------- contact globe: wire sphere + point dots ---------- */
 function globe(){

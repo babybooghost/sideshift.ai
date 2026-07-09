@@ -25,6 +25,15 @@ let private effect (f: unit -> unit) : Cmd<Msg> = [ fun _ -> f () ]
 let private mapWidget id f model =
     { model with Widgets = model.Widgets |> List.map (fun w -> if w.Id = id then f w else w) }
 
+// Keep a widget reachable: never let its title bar leave the viewport (so drag/minimize/
+// close stay clickable). Leaves a margin of on-screen widget on every edge.
+let private clampPos (w: Widget) : Widget =
+    let vw = Interop.innerWidth ()
+    let vh = Interop.innerHeight ()
+    let x = max 0.0 (min w.PosX (max 0.0 (vw - 140.0)))
+    let y = max 0.0 (min w.PosY (max 0.0 (vh - 48.0)))
+    { w with PosX = x; PosY = y }
+
 let private keyOpt (r: obj) : string option =
     let k = r?key
     if isNull k then None else Some(string k)
@@ -40,15 +49,29 @@ let private classifyCmd apiKey (cap: SideShift.Types.Capture) : Cmd<Msg> =
             | _ -> ())
         |> ignore ]
 
+// Track the live stream's unsubscribe per widget so we can detach the IPC listener on
+// completion (was leaked — one dead listener per message forever) and on widget close.
+let private activeStreams = System.Collections.Generic.Dictionary<int, unit -> unit>()
+
+let private stopStream (id: int) =
+    match activeStreams.TryGetValue id with
+    | true, unsub ->
+        activeStreams.Remove id |> ignore
+        (try unsub () with _ -> ())
+    | _ -> ()
+
 let private streamCmd req (id: int) : Cmd<Msg> =
     [ fun dispatch ->
-        Interop.streamChat req (fun ev ->
-            match string (ev?("type")) with
-            | "delta" -> dispatch (StreamDelta(id, string ev?text))
-            | "done" -> dispatch (StreamDone id)
-            | "error" -> dispatch (StreamError(id, string ev?message))
-            | _ -> ())
-        |> ignore ]
+        stopStream id
+        let mutable unsub = ignore
+        unsub <-
+            Interop.streamChat req (fun ev ->
+                match string (ev?("type")) with
+                | "delta" -> dispatch (StreamDelta(id, string ev?text))
+                | "done" -> stopStream id; dispatch (StreamDone id)
+                | "error" -> stopStream id; dispatch (StreamError(id, string ev?message))
+                | _ -> ())
+        activeStreams.[id] <- unsub ]
 
 let private modeStr =
     function
@@ -95,6 +118,7 @@ let private serialize (m: Model) : obj =
            opacity = surfaceStr m.Opacity
            theme = themeStr m.Theme
            webVerify = m.WebVerify
+           critic = m.CriticModel
            shared = m.SharedContext |> List.toArray
            widgets =
             m.Widgets
@@ -195,14 +219,18 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
         else
             let ws: obj [] = unbox o?widgets
             let sh: obj [] = unbox o?shared
+            let critic = if isNil o?critic then model.CriticModel else (unbox o?critic: string)
             { model with
-                Widgets = ws |> Array.map parseWidget |> Array.toList
+                // clamp on restore so a window saved off-screen (resolution change) is reachable
+                Widgets = ws |> Array.map (parseWidget >> clampPos) |> Array.toList
                 NextId = max model.NextId (unbox o?nextId: int)
                 TopZ = max model.TopZ (unbox o?topZ: int)
                 AccentColor = (if isNil o?accent then model.AccentColor else (unbox o?accent: string))
                 Opacity = (if isNil o?opacity then model.Opacity else strSurface (unbox o?opacity: string))
                 Theme = (if isNil o?theme then model.Theme else strTheme (unbox o?theme: string))
                 WebVerify = (if isNil o?webVerify then model.WebVerify else (unbox o?webVerify: bool))
+                CriticModel = critic
+                CriticDraft = critic
                 SharedContext = sh |> Array.map (fun s -> (unbox s: string)) |> Array.toList },
             Cmd.none
     | OpenSettings ->
@@ -238,17 +266,23 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
             let ak = model.AnthropicDraft.Trim()
             let ork = model.OpenRouterDraft.Trim()
             let critic = let c = model.CriticDraft.Trim() in if c = "" then SideShift.Api.DEFAULT_CRITIC_MODEL else c
+            let m2 =
+                { model with
+                    AnthropicKey = (if ak = "" then model.AnthropicKey else Some ak)
+                    OpenRouterKey = (if ork = "" then None else Some ork)
+                    CriticModel = critic
+                    Validating = false
+                    KeyError = None
+                    ShowSettings = false }
             let cmds =
                 [ if ak <> "" then Cmd.OfPromise.perform (fun () -> Interop.saveKey "anthropic" ak) () (fun _ -> SettingsSaved)
-                  if ork <> "" then Cmd.OfPromise.perform (fun () -> Interop.saveKey "openrouter" ork) () (fun _ -> SettingsSaved) ]
-            { model with
-                AnthropicKey = (if ak = "" then model.AnthropicKey else Some ak)
-                OpenRouterKey = (if ork = "" then None else Some ork)
-                CriticModel = critic
-                Validating = false
-                KeyError = None
-                ShowSettings = false },
-            Cmd.batch (effect (fun () -> Interop.setIgnoreMouse true) :: cmds)
+                  // persist a set OpenRouter key, and actually erase it from disk when cleared
+                  // (otherwise the old key resurrects on restart)
+                  if ork <> "" then Cmd.OfPromise.perform (fun () -> Interop.saveKey "openrouter" ork) () (fun _ -> SettingsSaved)
+                  elif Option.isSome model.OpenRouterKey then Cmd.OfPromise.perform (fun () -> Interop.clearKey "openrouter") () (fun _ -> SettingsSaved)
+                  // persist critic model (and the rest of the restorable state)
+                  saveCmd m2 ]
+            m2, Cmd.batch (effect (fun () -> Interop.setIgnoreMouse true) :: cmds)
     | SettingsSaved -> model, Cmd.none
     | SetAccent c ->
         let m2 = { model with AccentColor = c }
@@ -294,7 +328,7 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
         | [] -> model, Cmd.none
         | vis ->
             let top = vis |> List.maxBy (fun w -> w.Z)
-            let m2 = mapWidget top.Id (fun w -> { w with PosX = w.PosX + dx; PosY = w.PosY + dy }) model
+            let m2 = mapWidget top.Id (fun w -> clampPos { w with PosX = w.PosX + dx; PosY = w.PosY + dy }) model
             m2, saveCmd m2
 
     // --- capture flow ---
@@ -304,10 +338,16 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
         else
             model,
             Cmd.OfPromise.either Interop.captureScreen ()
-                (fun r -> ScreenshotReady(string r?dataUrl, float r?width, float r?height, float r?scale))
-                (fun _ -> CaptureCancelled)
+                (fun r ->
+                    if isNil r?ok || unbox r?ok then ScreenshotReady(string r?dataUrl, float r?width, float r?height, float r?scale)
+                    else CaptureFailed(string r?message))
+                (fun ex -> CaptureFailed ex.Message)
     | ScreenshotReady(d, w, h, s) ->
         { model with CaptureMode = true; Screenshot = Some(d, w, h, s) },
+        effect (fun () -> Interop.setIgnoreMouse false)
+    | CaptureFailed msg ->
+        // surface the reason (usually macOS Screen Recording permission) instead of a silent no-op
+        { model with CaptureMode = false; Screenshot = None; ShowSettings = true; KeyError = Some msg },
         effect (fun () -> Interop.setIgnoreMouse false)
     | CaptureCancelled ->
         { model with CaptureMode = false; Screenshot = None }, effect (fun () -> Interop.setIgnoreMouse true)
@@ -349,13 +389,20 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                   StreamBuf = ""
                   Error = None
                   Via = ""
-                  PosX = min cap.X 920.0
-                  PosY = min (cap.Y + 10.0) 560.0
+                  PosX = cap.X
+                  PosY = cap.Y + 10.0
                   Width = 380.0
                   Height = 440.0
                   Z = z
                   Minimized = false
                   Color = palette.[id % palette.Length] }
+                |> fun ww ->
+                    // clamp so the whole panel (not just the title bar) stays on-screen
+                    let vw = Interop.innerWidth ()
+                    let vh = Interop.innerHeight ()
+                    { ww with
+                        PosX = max 8.0 (min ww.PosX (max 8.0 (vw - ww.Width - 8.0)))
+                        PosY = max 8.0 (min ww.PosY (max 8.0 (vh - ww.Height - 8.0))) }
             let model2 = { model with Widgets = w :: model.Widgets; NextId = id + 1; TopZ = z; Pending = None; PendingCode = false }
             match SideShift.Api.firstPrompt mode with
             | Some p ->
@@ -375,7 +422,7 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
         { (mapWidget id (fun w -> { w with Z = z }) model) with TopZ = z; Resize = Some id }, Cmd.none
     | PointerMove(x, y) ->
         match model.Drag, model.Resize with
-        | Some(id, ox, oy), _ -> (mapWidget id (fun w -> { w with PosX = x - ox; PosY = y - oy }) model), Cmd.none
+        | Some(id, ox, oy), _ -> (mapWidget id (fun w -> clampPos { w with PosX = x - ox; PosY = y - oy }) model), Cmd.none
         | None, Some id ->
             (mapWidget id (fun w -> { w with Width = max 260.0 (x - w.PosX); Height = max 220.0 (y - w.PosY) }) model),
             Cmd.none
@@ -388,9 +435,10 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
         m2, saveCmd m2
     | Restore id ->
         let z = model.TopZ + 1
-        let m2 = { (mapWidget id (fun w -> { w with Minimized = false; Z = z }) model) with TopZ = z }
+        let m2 = { (mapWidget id (fun w -> clampPos { w with Minimized = false; Z = z }) model) with TopZ = z }
         m2, saveCmd m2
     | RequestClose id -> { model with Closing = Some id }, Cmd.none
+    | CancelClose -> { model with Closing = None }, Cmd.none
     | CloseWith(id, policy) ->
         let shared =
             match policy with
@@ -399,6 +447,7 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                 match model.Widgets |> List.tryFind (fun w -> w.Id = id) with
                 | Some w when not (List.isEmpty w.Messages) -> model.SharedContext @ [ SideShift.Api.mergeSummary w ]
                 | _ -> model.SharedContext
+        stopStream id // detach any in-flight stream listener for the widget being closed
         let m2 =
             { model with
                 Widgets = model.Widgets |> List.filter (fun w -> w.Id <> id)
@@ -411,6 +460,9 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
     | InputChanged(id, s) -> (mapWidget id (fun w -> { w with Input = s }) model), Cmd.none
     | Send id ->
         match model.Widgets |> List.tryFind (fun w -> w.Id = id) with
+        // ignore a second send while a reply is still streaming — concurrent streams
+        // would interleave into one corrupted assistant message
+        | Some w when w.Streaming -> model, Cmd.none
         | Some w when w.Input.Trim() <> "" ->
             match SideShift.Api.routeFor model w.Mode with
             | Some(provider, apiKey, modelId, via, webGrounded) ->
@@ -444,4 +496,14 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                         Streaming = false })
                 model
         m2, saveCmd m2
-    | StreamError(id, m) -> (mapWidget id (fun w -> { w with Streaming = false; Error = Some m }) model), Cmd.none
+    | StreamError(id, m) ->
+        // keep any partial reply the user was already reading instead of discarding it
+        (mapWidget id
+            (fun w ->
+                { w with
+                    Streaming = false
+                    Error = Some m
+                    Messages = (if w.StreamBuf <> "" then w.Messages @ [ { Role = "assistant"; Text = w.StreamBuf } ] else w.Messages)
+                    StreamBuf = "" })
+            model),
+        Cmd.none
