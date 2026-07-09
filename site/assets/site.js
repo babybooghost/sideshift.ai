@@ -52,6 +52,15 @@ function hero3d(){
     transparent:true, opacity:0.5, blending:THREE.AdditiveBlending, depthWrite:false }));
   scene.add(field);
 
+  // live recolor hook for the accent sampler
+  window.ssSetAccent = (goldHex, orangeHex)=>{
+    const gc=new THREE.Color(goldHex), oc=new THREE.Color(orangeHex);
+    const ca=g.attributes.color;
+    for(let i=0;i<N;i++){ const t=(pos[i*3+1]/R+1)/2; const c=gc.clone().lerp(oc,t); ca.setXYZ(i,c.r,c.g,c.b); }
+    ca.needsUpdate=true;
+    shell.material.color.set(orangeHex); field.material.color.set(goldHex);
+  };
+
   let mx=0, my=0;
   window.addEventListener("pointermove", (e)=>{ mx=(e.clientX/innerWidth-.5); my=(e.clientY/innerHeight-.5); });
 
@@ -146,6 +155,40 @@ function chatbot(){
   input.addEventListener("keydown",(e)=>{ if(e.key==="Enter") submit(); });
 }
 
+/* ---------- live accent sampler (recolors the whole site + the 3D orb) ---------- */
+const ACCENTS = {
+  amber:  {gold:"#F5B23B", amber:"#E8912B", orange:"#E4571E"},
+  gold:   {gold:"#FFD666", amber:"#F0B429", orange:"#DE9400"},
+  coral:  {gold:"#FFB199", amber:"#F0704E", orange:"#E23B2E"},
+  cyan:   {gold:"#7FE3E0", amber:"#2FBEBC", orange:"#0F9E9B"},
+  blue:   {gold:"#9FC4FF", amber:"#5B8DEF", orange:"#2E6FDF"},
+  violet: {gold:"#C9A8FF", amber:"#9B6BF0", orange:"#7C3AED"},
+  pink:   {gold:"#FFA8CE", amber:"#F063A0", orange:"#E23B82"}
+};
+function accentSampler(){
+  const root = document.documentElement;
+  const saved = localStorage.getItem("ss-accent") || "amber";
+  const apply = (name)=>{
+    const a = ACCENTS[name] || ACCENTS.amber;
+    root.style.setProperty("--gold", a.gold);
+    root.style.setProperty("--amber", a.amber);
+    root.style.setProperty("--orange", a.orange);
+    root.style.setProperty("--accent", a.orange);
+    if(window.ssSetAccent) window.ssSetAccent(a.gold, a.orange);
+    localStorage.setItem("ss-accent", name);
+  };
+  const bar = document.createElement("div"); bar.className = "accentbar";
+  const lbl = document.createElement("span"); lbl.className = "lbl"; lbl.textContent = "Accent"; bar.appendChild(lbl);
+  Object.keys(ACCENTS).forEach((name)=>{
+    const b = document.createElement("button"); b.style.background = ACCENTS[name].orange; b.title = name;
+    if(name === saved) b.classList.add("on");
+    b.addEventListener("click", ()=>{ apply(name); [...bar.querySelectorAll("button")].forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
+    bar.appendChild(b);
+  });
+  document.body.appendChild(bar);
+  apply(saved);
+}
+
 /* ---------- mobile nav toggle ---------- */
 function nav(){ const b=document.getElementById("burger"), l=document.querySelector(".nav-links"); if(!b) return;
   b.addEventListener("click",()=>{ l.style.display = l.style.display==="flex"?"none":"flex"; }); }
@@ -174,4 +217,4 @@ function globe(){
   let t=0; (function loop(){ t+=reduced?0:0.004; wire.rotation.y=t; dots.rotation.y=t; wire.rotation.x=dots.rotation.x=0.3; renderer.render(scene,cam); requestAnimationFrame(loop); })();
 }
 
-hero3d(); globe(); reveals(); heroScroll(); pinScrub(); counters(); chatbot(); nav();
+hero3d(); globe(); reveals(); heroScroll(); pinScrub(); counters(); chatbot(); nav(); accentSampler();
