@@ -196,12 +196,18 @@ async function googleSignIn(clientId, clientSecret) {
       const gotErr = u.searchParams.get("error");
       const ok = !gotErr && !!gotCode && gotState === state;
       // Show the page that matches what actually happened (was always "Signed in",
-      // even when the user denied consent).
-      const msg = ok
-        ? "Signed in — you can close this tab and return to SideShift."
-        : "Sign-in cancelled — nothing was changed. You can close this tab.";
-      res.writeHead(200, { "content-type": "text/html" });
-      res.end(`<html><body style='font-family:-apple-system,sans-serif;background:#16120D;color:#F1EADD;padding:56px'><h2>SideShift AI</h2><p>${msg}</p></body></html>`);
+      // even when the user denied consent). charset is required: without it the
+      // browser guesses latin-1 and punctuation renders as mojibake.
+      const title = ok ? "You're signed in." : "Sign-in cancelled.";
+      const sub = ok ? "Head back to SideShift. This tab can be closed." : "Nothing was changed. This tab can be closed.";
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(`<!doctype html><html><head><meta charset="utf-8"><title>SideShift AI</title></head>
+<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0B0908;font-family:-apple-system,BlinkMacSystemFont,sans-serif">
+<div style="text-align:center;padding:56px 44px;background:#16120D;border:1px solid #2E271C;border-radius:18px;box-shadow:0 40px 90px rgba(0,0,0,.55)">
+<svg viewBox="0 0 1024 1024" width="64" height="64" style="filter:drop-shadow(0 0 18px rgba(228,87,30,.45))"><defs><linearGradient id="g" x1="330" y1="270" x2="700" y2="770" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F8C64C"/><stop offset="1" stop-color="#E68A26"/></linearGradient><linearGradient id="a" x1="200" y1="730" x2="850" y2="235" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#D8481A"/><stop offset="1" stop-color="#F5732E"/></linearGradient></defs><path d="M 208 700 C 300 664 298 590 380 560 C 470 527 470 470 542 452 C 636 428 690 356 812 258" fill="none" stroke="url(#a)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/><path d="M 742 262 L 812 258 L 806 330" fill="none" stroke="url(#a)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/><g transform="translate(96 0) skewX(-11)"><path d="M 688 374 C 674 308 588 294 518 320 C 428 354 428 442 522 486 C 620 530 646 622 566 678 C 494 728 392 716 348 658" fill="none" stroke="url(#g)" stroke-width="100" stroke-linecap="round" stroke-linejoin="round"/></g><path d="M 560 442 C 636 414 690 356 812 258" fill="none" stroke="url(#a)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<h1 style="color:#F1EADD;font-size:22px;letter-spacing:-.01em;margin:18px 0 6px">${title}</h1>
+<p style="color:#9C8F7C;font-size:14.5px;margin:0">${sub}</p>
+</div></body></html>`);
       server.close();
       if (ok) resolve({ code: gotCode, redirect });
       else reject(new Error(

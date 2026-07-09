@@ -119,6 +119,7 @@ let private serialize (m: Model) : obj =
            theme = themeStr m.Theme
            webVerify = m.WebVerify
            critic = m.CriticModel
+           googleEmail = Option.toObj m.GoogleEmail
            shared = m.SharedContext |> List.toArray
            widgets =
             m.Widgets
@@ -231,6 +232,7 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                 WebVerify = (if isNil o?webVerify then model.WebVerify else (unbox o?webVerify: bool))
                 CriticModel = critic
                 CriticDraft = critic
+                GoogleEmail = (if isNil o?googleEmail then model.GoogleEmail else Some(unbox o?googleEmail: string))
                 SharedContext = sh |> Array.map (fun s -> (unbox s: string)) |> Array.toList },
             Cmd.none
     | OpenSettings ->
@@ -320,8 +322,12 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                 else
                     GoogleSignedIn(None, Some(string r?error)))
             (fun ex -> GoogleSignedIn(None, Some ex.Message))
-    | GoogleSignedIn(email, err) -> { model with GoogleBusy = false; GoogleEmail = email; GoogleErr = err }, Cmd.none
-    | GoogleSignOut -> { model with GoogleEmail = None }, effect (fun () -> Interop.googleSignOut () |> ignore)
+    | GoogleSignedIn(email, err) ->
+        let m2 = { model with GoogleBusy = false; GoogleEmail = email; GoogleErr = err }
+        m2, (if Option.isSome email then saveCmd m2 else Cmd.none)
+    | GoogleSignOut ->
+        let m2 = { model with GoogleEmail = None }
+        m2, Cmd.batch [ effect (fun () -> Interop.googleSignOut () |> ignore); saveCmd m2 ]
     | OpenScreenPrivacy -> model, effect (fun () -> Interop.openScreenPrivacy ())
     | NudgeFocused(dx, dy) ->
         match model.Widgets |> List.filter (fun w -> not w.Minimized) with
