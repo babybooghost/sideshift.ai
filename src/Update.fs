@@ -76,6 +76,16 @@ let private strSurface =
     | "transparent" -> Transparent
     | _ -> Translucent
 
+let private themeStr =
+    function
+    | Light -> "light"
+    | Dark -> "dark"
+
+let private strTheme =
+    function
+    | "light" -> Light
+    | _ -> Dark
+
 /// Serialize the restorable slice of the model to a plain JS object.
 let private serialize (m: Model) : obj =
     box
@@ -83,6 +93,7 @@ let private serialize (m: Model) : obj =
            topZ = m.TopZ
            accent = m.AccentColor
            opacity = surfaceStr m.Opacity
+           theme = themeStr m.Theme
            shared = m.SharedContext |> List.toArray
            widgets =
             m.Widgets
@@ -145,6 +156,7 @@ let init () : Model * Cmd<Msg> =
       CriticDraft = SideShift.Api.DEFAULT_CRITIC_MODEL
       AccentColor = "#E4571E"
       Opacity = Translucent
+      Theme = Dark
       Widgets = []
       NextId = 1
       TopZ = 10
@@ -182,6 +194,7 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                 TopZ = max model.TopZ (unbox o?topZ: int)
                 AccentColor = (if isNil o?accent then model.AccentColor else (unbox o?accent: string))
                 Opacity = (if isNil o?opacity then model.Opacity else strSurface (unbox o?opacity: string))
+                Theme = (if isNil o?theme then model.Theme else strTheme (unbox o?theme: string))
                 SharedContext = sh |> Array.map (fun s -> (unbox s: string)) |> Array.toList },
             Cmd.none
     | OpenSettings ->
@@ -213,6 +226,9 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
         m2, saveCmd m2
     | SetOpacity o ->
         let m2 = { model with Opacity = o }
+        m2, saveCmd m2
+    | SetTheme t ->
+        let m2 = { model with Theme = t }
         m2, saveCmd m2
     | OpenScreenPrivacy -> model, effect (fun () -> Interop.openScreenPrivacy ())
     | NudgeFocused(dx, dy) ->

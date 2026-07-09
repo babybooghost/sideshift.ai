@@ -6,25 +6,42 @@ open SideShift.Interop
 
 let private px (v: float) = sprintf "%gpx" v
 
-// ---- theme (Modern-tool / Builder-SaaS: warm dark, single accent, hairlines) --
-let private surface = "#16120D"
-let private raised = "#1E1912"
-let private chip = "#231D15"
-let private inputBg = "#120E0A"
-let private border = "#2E271C"
-let private borderSoft = "#241E16"
-let private textPri = "#F1EADD"
-let private textMut = "#9C8F7C"
-let private textSec = "#CDBFA9"
+// ---- theme tokens: all colors come from CSS vars set at the root per Theme, so
+// flipping dark/light re-paints everything (warm off-white light, not pure white).
+let private raised = "var(--ss-raised)"
+let private chip = "var(--ss-chip)"
+let private inputBg = "var(--ss-input)"
+let private border = "var(--ss-border)"
+let private borderSoft = "var(--ss-borderSoft)"
+let private textPri = "var(--ss-textPri)"
+let private textMut = "var(--ss-textMut)"
+let private textSec = "var(--ss-textSec)"
+let private track = "var(--ss-track)"
+let private shadow = "var(--ss-shadow)"
 let private accent = "var(--accent)"      // single accent, driven by --accent at the root
 let private mono = "ui-monospace, SFMono-Regular, Menlo, monospace"
 
-// Widget surface + backdrop-blur per opacity mode (Cluely-style glass).
-let private surfaceVar =
+/// Full CSS-var set for a theme (name, value) — stamped on the root div.
+let private themeVars =
     function
-    | Opaque -> "#16120D"
-    | Translucent -> "rgba(22,18,13,0.72)"
-    | Transparent -> "rgba(22,18,13,0.40)"
+    | Dark ->
+        [ "--ss-raised", "#1E1912"; "--ss-chip", "#231D15"; "--ss-input", "#120E0A"
+          "--ss-border", "#2E271C"; "--ss-borderSoft", "#241E16"
+          "--ss-textPri", "#F1EADD"; "--ss-textMut", "#9C8F7C"; "--ss-textSec", "#CDBFA9"
+          "--ss-track", "#2A2016"; "--ss-shadow", "0 20px 52px rgba(0,0,0,0.5)" ]
+    | Light ->
+        [ "--ss-raised", "#FFFFFF"; "--ss-chip", "#F2ECE0"; "--ss-input", "#FFFFFF"
+          "--ss-border", "#E6DCC9"; "--ss-borderSoft", "#EFE7D7"
+          "--ss-textPri", "#2A2318"; "--ss-textMut", "#8A7E6A"; "--ss-textSec", "#5C513E"
+          "--ss-track", "#E6DCC9"; "--ss-shadow", "0 16px 40px rgba(60,40,12,0.16)" ]
+
+// Widget surface + backdrop-blur per opacity mode (Cluely-style glass), theme-aware.
+let private surfaceVar theme opacity =
+    let rgb = match theme with | Dark -> "22,18,13" | Light -> "251,247,239"
+    match opacity with
+    | Opaque -> (match theme with | Dark -> "#16120D" | Light -> "#FBF7EF")
+    | Translucent -> sprintf "rgba(%s,0.74)" rgb
+    | Transparent -> sprintf "rgba(%s,0.42)" rgb
 
 let private blurVar =
     function
@@ -106,7 +123,7 @@ let private settingsModal (model: Model) dispatch =
             Html.div [
                 prop.style [ style.width 440; style.custom ("background", raised); style.borderRadius 14; style.padding 24
                              style.color textPri; style.custom ("border", sprintf "1px solid %s" border)
-                             style.custom ("boxShadow", "0 24px 60px rgba(0,0,0,0.5)") ]
+                             style.custom ("boxShadow", shadow) ]
                 prop.children [
                     Html.div [
                         prop.style [ style.display.flex; style.alignItems.center; style.custom ("gap", "11px") ]
@@ -180,6 +197,27 @@ let private settingsModal (model: Model) dispatch =
                                                          style.custom ("border", sprintf "1px solid %s" border)
                                                          style.custom ("background", (if model.Opacity = s then accent else "transparent"))
                                                          style.color (if model.Opacity = s then "#FFF" else textSec) ]
+                                        ]
+                                ]
+                            ]
+                        ]
+                    ]
+                    Html.div [
+                        prop.style [ style.marginTop 14 ]
+                        prop.children [
+                            Html.label [ prop.style [ style.fontSize 11; style.color textMut; style.custom ("letterSpacing", "0.04em"); style.custom ("textTransform", "uppercase") ]
+                                         prop.text "Theme" ]
+                            Html.div [
+                                prop.style [ style.display.flex; style.custom ("gap", "6px"); style.marginTop 7 ]
+                                prop.children [
+                                    for (label, t) in [ "Dark", Dark; "Light", Light ] ->
+                                        Html.button [
+                                            prop.text label
+                                            prop.onClick (fun _ -> dispatch (SetTheme t))
+                                            prop.style [ style.custom ("flex", "1"); style.padding (7, 8); style.borderRadius 7; style.cursor.pointer; style.fontSize 12
+                                                         style.custom ("border", sprintf "1px solid %s" border)
+                                                         style.custom ("background", (if model.Theme = t then accent else "transparent"))
+                                                         style.color (if model.Theme = t then "#FFF" else textSec) ]
                                         ]
                                 ]
                             ]
@@ -271,7 +309,7 @@ let private pendingBar (isCode: bool) (ax: float) (ay: float) dispatch =
         prop.style [ style.position.fixedRelativeToWindow; style.custom ("left", px (min ax 1100.0))
                      style.custom ("top", px (max (ay - 46.0) 8.0)); style.display.flex; style.alignItems.center
                      style.custom ("gap", "1px"); style.custom ("background", raised); style.custom ("border", sprintf "1px solid %s" border)
-                     style.borderRadius 10; style.padding 4; style.custom ("boxShadow", "0 10px 34px rgba(0,0,0,0.45)"); style.custom ("zIndex", "2000000") ]
+                     style.borderRadius 10; style.padding 4; style.custom ("boxShadow", shadow); style.custom ("zIndex", "2000000") ]
         yield! hoverProps
         prop.children [
             Html.span [ prop.style [ style.width 14; style.height 14; style.color accent; style.marginLeft 5; style.marginRight 3 ]
@@ -319,7 +357,7 @@ let private confBar (n: int) =
                 ]
             ]
             Html.div [
-                prop.style [ style.height 6; style.borderRadius 3; style.custom ("background", "#2A2016"); style.overflow.hidden ]
+                prop.style [ style.height 6; style.borderRadius 3; style.custom ("background", track); style.overflow.hidden ]
                 prop.children [ Html.div [ prop.style [ style.height 6; style.custom ("width", sprintf "%d%%" n); style.custom ("background", confColor n) ] ] ]
             ]
         ]
@@ -413,7 +451,7 @@ let private widgetView (model: Model) (w: Widget) dispatch =
                      style.custom ("background", "var(--surface)"); style.custom ("backdropFilter", "blur(var(--sblur))")
                      style.custom ("WebkitBackdropFilter", "blur(var(--sblur))")
                      style.custom ("border", sprintf "1px solid %s" border)
-                     style.custom ("boxShadow", "0 20px 52px rgba(0,0,0,0.5)"); style.overflow.hidden ]
+                     style.custom ("boxShadow", shadow); style.overflow.hidden ]
         yield! hoverProps
         prop.onMouseDown (fun _ -> dispatch (Focus w.Id))
         prop.children [
@@ -591,9 +629,10 @@ let private dock dispatch =
 // ---- root ------------------------------------------------------------------
 let view (model: Model) dispatch =
     Html.div [
-        prop.style [ style.custom ("--accent", model.AccentColor)
-                     style.custom ("--surface", surfaceVar model.Opacity)
-                     style.custom ("--sblur", blurVar model.Opacity) ]
+        prop.style ([ style.custom ("--accent", model.AccentColor)
+                      style.custom ("--surface", surfaceVar model.Theme model.Opacity)
+                      style.custom ("--sblur", blurVar model.Opacity) ]
+                    @ (themeVars model.Theme |> List.map (fun (k, v) -> style.custom (k, v))))
         prop.children [
             match model.Drag, model.Resize with
             | None, None -> Html.none

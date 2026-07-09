@@ -12,6 +12,10 @@ type Surface =
     | Translucent
     | Transparent
 
+type Theme =
+    | Dark
+    | Light
+
 type ChatMsg = { Role: string; Text: string }
 
 /// A highlighted screen region + what we know about it.
@@ -60,6 +64,7 @@ type Model =
       // appearance
       AccentColor: string
       Opacity: Surface
+      Theme: Theme
       // workspace
       Widgets: Widget list
       NextId: int
@@ -85,6 +90,7 @@ type Msg =
     | SettingsSaved
     | SetAccent of string
     | SetOpacity of Surface
+    | SetTheme of Theme
     | OpenScreenPrivacy
     | NudgeFocused of float * float
     // capture flow
