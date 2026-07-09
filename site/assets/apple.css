@@ -1,0 +1,50 @@
+/* Editorial / big-type overrides for the landing page only. */
+:root{ --ease:cubic-bezier(.16,.8,.24,1); }
+
+/* full-viewport centered stages, minimal words, huge type */
+.stage{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:14vh 24px;position:relative;z-index:2}
+.tiny-eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.26em;text-transform:uppercase;color:var(--orange);margin:0 0 26px}
+.mega{font-size:clamp(48px,9.2vw,132px);line-height:.96;letter-spacing:-.04em;font-weight:800;text-wrap:balance;margin:0}
+.mega.sm{font-size:clamp(40px,6.5vw,92px)}
+.one-line{font-size:clamp(18px,2.4vw,27px);color:var(--muted);max-width:22ch;margin:26px auto 0;line-height:1.35;text-wrap:balance}
+.stage .cta-row{margin-top:38px;justify-content:center}
+.stage-visual{margin-top:clamp(40px,7vh,86px);width:100%;display:flex;justify-content:center;perspective:1400px}
+
+/* scroll reveal: rise + settle */
+.fade-up{opacity:0;transform:translateY(46px) scale(.985);
+  transition:opacity 1.05s var(--ease),transform 1.05s var(--ease)}
+.fade-up.in{opacity:1;transform:none}
+.d1{transition-delay:.08s}.d2{transition-delay:.16s}.d3{transition-delay:.24s}
+@media (prefers-reduced-motion:reduce){.fade-up{opacity:1;transform:none;transition:none}}
+
+/* full-bleed hero with the orb centered behind the type */
+.applehero{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;padding:0 24px}
+#hero3d{position:absolute;inset:0;z-index:1}
+.applehero .inner{position:relative;z-index:3}
+.scrollhint{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);z-index:3;color:var(--dim);font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:10px}
+.scrollhint .line{width:1px;height:34px;background:linear-gradient(var(--orange),transparent);animation:drop 1.8s var(--ease) infinite}
+@keyframes drop{0%{transform:scaleY(.2);transform-origin:top;opacity:0}40%{opacity:1}100%{transform:scaleY(1);transform-origin:top;opacity:0}}
+
+/* sticky scrub block: visual stays pinned while three panels cross-fade */
+.pin{height:340vh;position:relative}
+.pin-inner{position:sticky;top:0;height:100svh;display:flex;align-items:center;justify-content:center;overflow:hidden;text-align:center}
+.pin-panel{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px;
+  opacity:0;transform:translateY(30px) scale(.98);transition:opacity .5s var(--ease),transform .5s var(--ease);pointer-events:none}
+.pin-panel.active{opacity:1;transform:none}
+
+/* app visual frames */
+.shot{border-radius:20px;overflow:hidden;box-shadow:0 50px 120px rgba(0,0,0,.6),var(--glow-o);
+  border:1px solid var(--line);background:rgba(22,18,13,.72);backdrop-filter:blur(16px);transform-style:preserve-3d}
+.shot.tilt{transform:rotateX(6deg) rotateY(-9deg)}
+.deck{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+
+/* huge word rows (feature call-outs) */
+.wordrow{display:flex;flex-direction:column;align-items:center;gap:8px}
+.wordrow .k{font-family:var(--mono);font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--orange)}
+
+/* strip the old wordy sections' density on mobile */
+@media (max-width:760px){
+  .shot.tilt{transform:none}
+  .deck{gap:16px}
+}

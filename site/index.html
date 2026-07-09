@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SideShift AI — a second opinion for everything AI tells you</title>
-  <meta name="description" content="Highlight anything on your screen and open a focused side-chat that fact-checks, explains, or diffs it. Your own API key, local by default.">
+  <title>SideShift AI</title>
+  <meta name="description" content="A second opinion for everything AI tells you.">
   <link rel="stylesheet" href="assets/site.css">
+  <link rel="stylesheet" href="assets/apple.css">
 </head>
 <body>
 <div class="bgfx"></div><div class="grain"></div>
@@ -14,131 +15,126 @@
   <div class="navin">
     <a class="brand" href="index.html">
       <span class="m"><svg viewBox="0 0 1024 1024" width="100%" height="100%"><defs><linearGradient id="mg" x1="330" y1="270" x2="700" y2="770" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F8C64C"/><stop offset="1" stop-color="#E68A26"/></linearGradient><linearGradient id="ma" x1="200" y1="730" x2="850" y2="235" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#D8481A"/><stop offset="1" stop-color="#F5732E"/></linearGradient></defs><path d="M 208 700 C 300 664 298 590 380 560 C 470 527 470 470 542 452 C 636 428 690 356 812 258" fill="none" stroke="url(#ma)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/><path d="M 742 262 L 812 258 L 806 330" fill="none" stroke="url(#ma)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/><g transform="translate(96 0) skewX(-11)"><path d="M 688 374 C 674 308 588 294 518 320 C 428 354 428 442 522 486 C 620 530 646 622 566 678 C 494 728 392 716 348 658" fill="none" stroke="url(#mg)" stroke-width="100" stroke-linecap="round" stroke-linejoin="round"/></g><path d="M 560 442 C 636 414 690 356 812 258" fill="none" stroke="url(#ma)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/><path d="M 742 262 L 812 258 L 806 330" fill="none" stroke="url(#ma)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      SIDESHIFT <span class="chip">v0.1.2</span>
+      SIDESHIFT
     </a>
-    <button class="burger" id="burger" aria-label="Menu">☰</button>
     <div class="nav-links">
-      <a href="index.html#features">Features</a>
       <a href="pricing.html">Pricing</a>
-      <a href="marketplace.html">Marketplace</a>
-      <a href="case-studies.html">Case studies</a>
       <a href="contact.html">Contact</a>
-      <a class="navcta" href="#download">Download</a>
+      <a class="navcta" href="#get">Download</a>
     </div>
   </div>
 </nav>
 
 <main>
-<section class="hero wrap" style="padding-top:20px">
+
+<!-- HERO -->
+<section class="applehero">
   <div id="hero3d"></div>
-  <div class="hero-copy">
-    <p class="eyebrow">The trust layer for AI</p>
-    <h1>A second opinion for <span class="grad">everything AI tells you</span>.</h1>
-    <p class="lede">Highlight anything on your screen, in Claude, ChatGPT, an IDE, or a PDF, and open a focused side-chat that fact-checks, explains, or diffs it. Runs on your own API key. Nothing leaves your machine but the region you pick.</p>
-    <div class="cta-row">
-      <a class="btn btn-p" href="#download">Download free</a>
-      <a class="btn btn-g" href="pricing.html">See plans</a>
-    </div>
-    <div class="trust">
-      <span class="t"><b>Your key.</b> Your machine.</span>
-      <span class="t"><b>No server.</b> No account.</span>
-      <span class="t"><b>Any app.</b> It reads the screen.</span>
-    </div>
+  <div class="inner">
+    <p class="tiny-eyebrow fade-up">The trust layer for AI</p>
+    <h1 class="mega fade-up d1">Verify<br><span class="grad">everything</span>.</h1>
+    <p class="one-line fade-up d2">A second opinion for every answer AI gives you.</p>
+    <div class="cta-row fade-up d3"><a class="btn btn-p" href="#get">Download</a></div>
   </div>
-  <div class="hero-visual">
-    <div class="appwidget reveal">
+  <div class="scrollhint"><span>Scroll</span><span class="line"></span></div>
+</section>
+
+<!-- VERIFY -->
+<section class="stage">
+  <p class="tiny-eyebrow fade-up">Verify</p>
+  <h2 class="mega sm fade-up d1">Catch the<br><span class="grad">hallucination</span>.</h2>
+  <p class="one-line fade-up d2">A skeptical critic scores it and cites honestly.</p>
+  <div class="stage-visual fade-up d2">
+    <div class="appwidget shot tilt" style="max-width:440px">
       <div class="aw-hd"><span class="aw-dot"></span><span class="aw-ttl">Verify</span><span class="aw-via">critic:openai/gpt-4o</span><span class="aw-x">✕</span></div>
-      <div class="aw-src">"Honey never spoils. Archaeologists found 3,000-year-old honey in Egyptian tombs, still edible."</div>
+      <div class="aw-src">"Honey never spoils. 3,000-year-old tomb honey is still edible."</div>
       <div class="aw-body">
         <div class="aw-cf"><span class="l">Confidence</span><span class="n">72/100</span></div>
         <div class="aw-trk"><div class="aw-fill"></div></div>
-        <div class="aw-vd">Broadly true, but "never" is overstated and the tomb detail needs a live check.</div>
+        <div class="aw-vd">Broadly true, but "never" is overstated.</div>
         <div class="aw-sec">Claims</div>
-        <div class="aw-claim"><span class="tag" style="background:#3FA35B">ESTABLISHED</span><span>Honey resists spoilage. Low water, acidic.</span></div>
-        <div class="aw-claim"><span class="tag" style="background:#E8912B">UNCERTAIN</span><span>"Never." Can ferment if moisture enters.</span></div>
-        <div class="aw-claim"><span class="tag" style="background:#4C86C6">NEEDS LIVE CHECK</span><span>3,000-year-old tomb honey. Verify the source.</span></div>
+        <div class="aw-claim"><span class="tag" style="background:#3FA35B">ESTABLISHED</span><span>Honey resists spoilage.</span></div>
+        <div class="aw-claim"><span class="tag" style="background:#E8912B">UNCERTAIN</span><span>"Never." Can ferment.</span></div>
+        <div class="aw-claim"><span class="tag" style="background:#4C86C6">NEEDS LIVE CHECK</span><span>Tomb honey. Verify source.</span></div>
       </div>
     </div>
   </div>
 </section>
 
-<section class="wrap" style="padding-top:0">
-  <div class="stats reveal">
-    <div class="stat"><div class="n" data-count="4">0</div><div class="l">Side-chat modes</div></div>
-    <div class="stat"><div class="n" data-count="2">0</div><div class="l">AI providers</div></div>
-    <div class="stat"><div class="n" data-count="100" data-suffix="%">0</div><div class="l">Runs on your key</div></div>
-    <div class="stat"><div class="n" data-count="3">0</div><div class="l">Desktop platforms</div></div>
-  </div>
-</section>
-
-<section class="wrap" id="features">
-  <p class="sec-eyebrow reveal">What it does</p>
-  <div class="fgrid">
-    <div class="fcard reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></span><span class="k">Verify</span><h3>Catch the hallucination</h3><p>An independent cross-model critic scores the claim, tags every sub-claim, and cites honestly. No invented sources. Flip on web grounding for real live citations.</p></div>
-    <div class="fcard reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg></span><span class="k">ELI5</span><h3>Break the jargon wall</h3><p>Highlight a term and get a two-sentence plain-English definition in the exact context you are reading.</p></div>
-    <div class="fcard reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3v18M16 3v18M3 8h5M16 8h5M3 16h5M16 16h5"/></svg></span><span class="k">Diff</span><h3>Stop re-reading whole files</h3><p>Highlight code, ask for a fix, and get a minimal git-style diff instead of a full reprint. Code is auto-detected.</p></div>
-    <div class="fcard reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 8l-4 4 4 4M17 8l4 4-4 4M14 4l-4 16"/></svg></span><span class="k">Merge or discard</span><h3>No context pollution</h3><p>Close a tangent for good, or fold a short summary into the thread so a side-quest is never lost.</p></div>
-    <div class="fcard reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 9H3M9 21V9"/></svg></span><span class="k">Minimap</span><h3>Never lose the thread</h3><p>Minimize side-chats to glowing nodes on the edge, then click to jump back to what you highlighted.</p></div>
-    <div class="fcard reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></span><span class="k">Your key</span><h3>Local by default</h3><p>Bring your own Anthropic or OpenRouter key, encrypted on your machine. No server sees your screen or your prompts.</p></div>
-  </div>
-</section>
-
-<section class="wrap">
-  <p class="sec-eyebrow reveal">See it in the flow</p>
-  <div class="glass reveal" style="padding:clamp(24px,4vw,44px);display:grid;grid-template-columns:1.1fr 1fr;gap:36px;align-items:center">
-    <div>
-      <h2>Highlight. Pick an action. Answer in place.</h2>
-      <p class="lede" style="margin-top:16px">Press the hotkey over any app, drag a box over the text or code, and a translucent side-chat streams the reply. The main thread never moves. Move it with the keyboard, hide it with a keystroke, dock it to the edge.</p>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:22px">
-        <span class="chip">⌘⇧Space capture</span><span class="chip">⌘\ hide</span><span class="chip">⌘⌥ arrows move</span>
+<!-- ELI5 + DIFF as a deck -->
+<section class="stage">
+  <p class="tiny-eyebrow fade-up">Ask · ELI5 · Diff</p>
+  <h2 class="mega sm fade-up d1">One highlight.<br><span class="grad">Any question</span>.</h2>
+  <div class="stage-visual fade-up d2">
+    <div class="deck">
+      <div class="appwidget shot" style="max-width:320px">
+        <div class="aw-hd"><span class="aw-dot" style="background:#F5B23B;box-shadow:0 0 10px #F5B23B"></span><span class="aw-ttl">ELI5</span></div>
+        <div class="aw-body" style="padding-top:14px"><div style="background:var(--chip);border-radius:10px;padding:11px 12px;font-size:13.5px;color:var(--ink);line-height:1.5">Idempotent means running it twice does the same thing as once. Safe to retry.</div></div>
       </div>
-    </div>
-    <div style="display:flex;justify-content:center">
-      <div class="glass" style="padding:6px;border-radius:14px">
-        <div style="display:flex;align-items:center;gap:2px;padding:5px 6px">
-          <span style="width:15px;height:15px;color:var(--orange);display:inline-flex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/></svg></span>
-          <span style="font-family:var(--mono);font-size:10px;color:var(--muted);background:rgba(0,0,0,.3);padding:1px 6px;border-radius:5px;margin:0 4px">code</span>
-          <span style="color:var(--muted);padding:6px 9px;font-size:12.5px">Ask</span>
-          <span style="color:var(--muted);padding:6px 9px;font-size:12.5px">ELI5</span>
-          <span style="color:var(--muted);padding:6px 9px;font-size:12.5px">Verify</span>
-          <span style="background:var(--orange);color:#fff;padding:6px 11px;border-radius:7px;font-size:12.5px;font-weight:600;box-shadow:var(--glow-o)">Diff</span>
-        </div>
+      <div class="appwidget shot" style="max-width:340px">
+        <div class="aw-hd"><span class="aw-dot"></span><span class="aw-ttl">Diff</span><span class="aw-via">claude-sonnet-5</span></div>
+        <div class="aw-body" style="padding-top:14px"><div class="mono" style="background:var(--chip);border-radius:10px;padding:11px 12px;font-size:13px;line-height:1.6;white-space:pre">@@ parse(line) @@
+<span style="color:#F0865A">-  if (x &lt; 0) return null;</span>
+<span style="color:#3FA35B">+  if (x &lt;= 0) return null;</span></div></div>
       </div>
     </div>
   </div>
 </section>
 
-<section class="wrap" id="download">
-  <div class="glass reveal" style="padding:clamp(30px,5vw,52px);text-align:center">
-    <p class="eyebrow" style="justify-self:center">Download</p>
-    <h2 style="margin:14px 0 10px">Free while in beta.</h2>
-    <p class="lede" style="margin:0 auto 26px">macOS and Windows. Bring your own key. It floats over any app you already use.</p>
-    <div class="cta-row" style="justify-content:center">
-      <a class="btn btn-p" href="https://github.com/babybooghost/sideshift.ai/releases/download/v0.1.2/SideShift.AI-0.1.2-arm64-mac.zip">macOS · Apple Silicon</a>
-      <a class="btn btn-g" href="https://github.com/babybooghost/sideshift.ai/releases/download/v0.1.2/SideShift.AI-0.1.2-mac.zip">macOS · Intel</a>
-      <a class="btn btn-g" href="https://github.com/babybooghost/sideshift.ai/releases/download/v0.1.2/SideShift.AI-0.1.2-setup.exe">Windows</a>
+<!-- ANY APP (pinned scrub) -->
+<div class="pin">
+  <div class="pin-inner">
+    <div class="pin-panel" data-panel="0">
+      <p class="tiny-eyebrow">Over anything</p>
+      <h2 class="mega sm">It floats over<br><span class="grad">every app</span>.</h2>
+      <p class="one-line">Claude, ChatGPT, your IDE, a PDF.</p>
     </div>
-    <p class="mono" style="color:var(--dim);font-size:12.5px;margin-top:18px">Private beta. Ask the maintainer for access, or open the repo publicly for open downloads. Unsigned build, so on macOS use System Settings, Privacy and Security, Open Anyway.</p>
+    <div class="pin-panel" data-panel="1">
+      <h2 class="mega sm">It reads the<br><span class="grad">screen</span>.</h2>
+      <p class="one-line">Drag a box. Nothing else leaves your machine.</p>
+    </div>
+    <div class="pin-panel" data-panel="2">
+      <h2 class="mega sm">The thread<br><span class="grad">never moves</span>.</h2>
+      <p class="one-line">Tangents stay in the side-chat.</p>
+    </div>
   </div>
+</div>
+
+<!-- PRIVACY -->
+<section class="stage">
+  <p class="tiny-eyebrow fade-up">Local by default</p>
+  <h2 class="mega sm fade-up d1">Your key.<br><span class="grad">Your machine</span>.</h2>
+  <p class="one-line fade-up d2">No server. No account. Nothing to leak.</p>
 </section>
+
+<!-- DOWNLOAD -->
+<section class="stage" id="get">
+  <p class="tiny-eyebrow fade-up">Free in beta</p>
+  <h2 class="mega sm fade-up d1">Get <span class="grad">SideShift</span>.</h2>
+  <div class="cta-row fade-up d2" style="flex-wrap:wrap">
+    <a class="btn btn-p" href="https://github.com/babybooghost/sideshift.ai/releases/download/v0.1.2/SideShift.AI-0.1.2-arm64-mac.zip">Apple Silicon</a>
+    <a class="btn btn-g" href="https://github.com/babybooghost/sideshift.ai/releases/download/v0.1.2/SideShift.AI-0.1.2-mac.zip">Intel Mac</a>
+    <a class="btn btn-g" href="https://github.com/babybooghost/sideshift.ai/releases/download/v0.1.2/SideShift.AI-0.1.2-setup.exe">Windows</a>
+  </div>
+  <p class="mono fade-up d3" style="color:var(--dim);font-size:12px;margin-top:20px">v0.1.2 · bring your own key</p>
+</section>
+
 </main>
 
 <footer><div class="wrap footin">
-  <div><b style="color:var(--ink)">SideShift AI</b>. The verify layer for AI. Your key, your machine.</div>
+  <div><b style="color:var(--ink)">SideShift AI</b></div>
   <div class="footlinks">
-    <a href="pricing.html">Pricing</a><a href="marketplace.html">Marketplace</a><a href="blog.html">Blog</a><a href="case-studies.html">Case studies</a><a href="contact.html">Contact</a><a href="https://github.com/babybooghost/sideshift.ai">GitHub</a>
+    <a href="pricing.html">Pricing</a><a href="contact.html">Contact</a><a href="https://github.com/babybooghost/sideshift.ai">GitHub</a>
   </div>
 </div></footer>
 
 <div class="bot">
   <div class="bot-panel glass" id="botPanel">
     <div class="bot-head"><span class="aw-dot"></span> Ask SideShift</div>
-    <div class="bot-msgs" id="botMsgs"><div class="bot-msg bot-ai">Hi. Ask me about Verify, your API key, pricing, or downloads.</div></div>
+    <div class="bot-msgs" id="botMsgs"><div class="bot-msg bot-ai">Ask about Verify, your key, or downloads.</div></div>
     <div class="bot-in"><input id="botIn" placeholder="Type a question..."><button id="botSend">→</button></div>
   </div>
-  <button class="bot-btn" id="botBtn" aria-label="Chat">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 01-8.5 8.4 8.6 8.6 0 01-3.9-.9L3 21l1.9-5.6a8.4 8.4 0 01-.9-3.9A8.4 8.4 0 0112.5 3 8.4 8.4 0 0121 11.5z"/></svg>
-  </button>
+  <button class="bot-btn" id="botBtn" aria-label="Chat"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 01-8.5 8.4 8.6 8.6 0 01-3.9-.9L3 21l1.9-5.6a8.4 8.4 0 01-.9-3.9A8.4 8.4 0 0112.5 3 8.4 8.4 0 0121 11.5z"/></svg></button>
 </div>
 
 <script type="module" src="assets/site.js"></script>

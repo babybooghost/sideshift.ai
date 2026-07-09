@@ -80,8 +80,36 @@ function hero3d(){
 
 /* ---------- scroll reveal ---------- */
 function reveals(){
-  const io = new IntersectionObserver((es)=>{ for(const e of es) if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } }, { threshold:0.14 });
-  document.querySelectorAll(".reveal").forEach(el=>io.observe(el));
+  const io = new IntersectionObserver((es)=>{ for(const e of es) if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } }, { threshold:0.12 });
+  document.querySelectorAll(".reveal, .fade-up").forEach(el=>io.observe(el));
+}
+
+/* ---------- hero orb scales + fades as you scroll past it ---------- */
+function heroScroll(){
+  const el = document.getElementById("hero3d");
+  const hero = document.querySelector(".applehero");
+  if(!el || !hero) return;
+  const on = ()=>{
+    const p = Math.min(Math.max(window.scrollY / hero.offsetHeight, 0), 1);
+    el.style.transform = `scale(${1 + p*0.6}) translateY(${p*30}px)`;
+    el.style.opacity = String(1 - p*0.9);
+  };
+  on(); window.addEventListener("scroll", on, {passive:true});
+}
+
+/* ---------- pinned scrub: cross-fade panels through a tall sticky block ---------- */
+function pinScrub(){
+  const pin = document.querySelector(".pin");
+  if(!pin) return;
+  const panels = [...pin.querySelectorAll(".pin-panel")];
+  const on = ()=>{
+    const rect = pin.getBoundingClientRect();
+    const total = pin.offsetHeight - window.innerHeight;
+    const p = Math.min(Math.max(-rect.top / total, 0), 0.999);
+    const idx = Math.floor(p * panels.length);
+    panels.forEach((el,i)=>el.classList.toggle("active", i===idx));
+  };
+  on(); window.addEventListener("scroll", on, {passive:true});
 }
 
 /* ---------- animated counters ---------- */
@@ -146,4 +174,4 @@ function globe(){
   let t=0; (function loop(){ t+=reduced?0:0.004; wire.rotation.y=t; dots.rotation.y=t; wire.rotation.x=dots.rotation.x=0.3; renderer.render(scene,cam); requestAnimationFrame(loop); })();
 }
 
-hero3d(); globe(); reveals(); counters(); chatbot(); nav();
+hero3d(); globe(); reveals(); heroScroll(); pinScrub(); counters(); chatbot(); nav();
