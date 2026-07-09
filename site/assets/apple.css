@@ -5,8 +5,9 @@
 .stage{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;
   text-align:center;padding:14vh 24px;position:relative;z-index:2}
 .tiny-eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.26em;text-transform:uppercase;color:var(--orange);margin:0 0 26px}
-.mega{font-size:clamp(48px,9.2vw,132px);line-height:.96;letter-spacing:-.04em;font-weight:800;text-wrap:balance;margin:0}
-.mega.sm{font-size:clamp(40px,6.5vw,92px)}
+.mega{font-size:clamp(46px,8.6vw,120px);line-height:1;letter-spacing:-.028em;font-weight:600;text-wrap:balance;margin:0;color:var(--ink)}
+.mega.sm{font-size:clamp(38px,6vw,84px)}
+.mega .grad{font-weight:600}
 .one-line{font-size:clamp(18px,2.4vw,27px);color:var(--muted);max-width:22ch;margin:26px auto 0;line-height:1.35;text-wrap:balance}
 .stage .cta-row{margin-top:38px;justify-content:center}
 .stage-visual{margin-top:clamp(40px,7vh,86px);width:100%;display:flex;justify-content:center;perspective:1400px}

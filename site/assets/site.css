@@ -40,16 +40,17 @@ nav{position:sticky;top:0;z-index:40;backdrop-filter:blur(14px);-webkit-backdrop
 .nav-links a:hover,.nav-links a.on{color:var(--ink)}
 .chip{font-family:var(--mono);font-size:11px;color:var(--gold);border:1px solid var(--line);
   border-radius:20px;padding:3px 10px;background:rgba(245,178,59,.06)}
-.navcta{background:linear-gradient(120deg,var(--gold),var(--orange));color:#160E06;font-weight:700;
-  padding:8px 15px;border-radius:10px;font-size:13px;box-shadow:var(--glow-o)}
+.navcta{background:var(--orange);color:#fff;font-weight:600;
+  padding:8px 16px;border-radius:20px;font-size:13px}
 .burger{display:none}
 
 /* buttons */
 .btn{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:15px;
   padding:13px 22px;border-radius:13px;cursor:pointer;border:1px solid transparent;transition:transform .14s ease,box-shadow .2s}
 .btn:hover{transform:translateY(-2px)}
-.btn-p{background:linear-gradient(120deg,var(--gold),var(--orange));color:#160E06;box-shadow:var(--glow-o)}
-.btn-p:hover{box-shadow:0 0 60px rgba(228,87,30,.6)}
+.btn-p{background:var(--orange);color:#fff;border-radius:980px;box-shadow:0 6px 24px rgba(228,87,30,.28)}
+.btn-p:hover{box-shadow:0 8px 34px rgba(228,87,30,.42)}
+.btn-g{border-radius:980px}
 .btn-g{background:var(--glass);border-color:var(--line);color:var(--ink);backdrop-filter:blur(10px)}
 .btn-g:hover{border-color:var(--orange)}
 
@@ -59,10 +60,10 @@ nav{position:sticky;top:0;z-index:40;backdrop-filter:blur(14px);-webkit-backdrop
 
 /* type */
 .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--orange)}
-h1{font-size:clamp(40px,7vw,74px);line-height:1.02;letter-spacing:-.025em;font-weight:800;text-wrap:balance;margin:18px 0 20px}
-.grad{background:linear-gradient(115deg,var(--gold) 10%,var(--orange) 70%,var(--ember));
-  -webkit-background-clip:text;background-clip:text;color:transparent}
-h2{font-size:clamp(28px,4.4vw,44px);letter-spacing:-.02em;line-height:1.08;font-weight:800;text-wrap:balance;margin:0}
+h1{font-size:clamp(40px,7vw,74px);line-height:1.04;letter-spacing:-.02em;font-weight:600;text-wrap:balance;margin:18px 0 20px}
+/* accent word: solid warm tone, not a loud gradient (that reads AI-generated) */
+.grad{color:var(--amber)}
+h2{font-size:clamp(28px,4.4vw,44px);letter-spacing:-.018em;line-height:1.1;font-weight:600;text-wrap:balance;margin:0}
 .lede{font-size:clamp(17px,2.2vw,20px);color:var(--muted);max-width:58ch}
 .sec-eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
 
