@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, screen, safeStorage, shell } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, screen, safeStorage, shell, Tray, Menu, nativeImage } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
@@ -12,6 +12,7 @@ const isDev = process.env.NODE_ENV === "development";
 const KEY_FILE = (name) => path.join(app.getPath("userData"), `${String(name).replace(/[^a-z0-9]/gi, "_")}.key.enc`);
 
 let overlay = null;
+let tray = null;
 
 function createOverlay() {
   const primary = screen.getPrimaryDisplay();
@@ -216,6 +217,19 @@ ipcMain.handle("google-signout", () => {
   return { ok: true };
 });
 
+// Validate an API key by hitting a cheap authenticated endpoint. ok=false means
+// we could not reach the network (offline); valid reflects the auth result.
+ipcMain.handle("validate-key", async (_e, { provider, key }) => {
+  try {
+    const res = provider === "openrouter"
+      ? await fetch("https://openrouter.ai/api/v1/key", { headers: { authorization: `Bearer ${key}` } })
+      : await fetch("https://api.anthropic.com/v1/models", { headers: { "x-api-key": key, "anthropic-version": "2023-06-01" } });
+    return { ok: true, valid: res.status >= 200 && res.status < 300, status: res.status };
+  } catch (e) {
+    return { ok: false, valid: false, status: 0, error: String(e?.message || e) };
+  }
+});
+
 // --- IPC: chat streaming (provider-agnostic) -------------------------------
 // Each request gets an id; chunks flow back as "stream:<id>" events.
 ipcMain.on("chat-stream", async (event, req) => {
@@ -258,8 +272,47 @@ app.whenReady().then(() => {
   globalShortcut.register("CommandOrControl+Alt+Up", () => nudge(0, -STEP));
   globalShortcut.register("CommandOrControl+Alt+Down", () => nudge(0, STEP));
 
+  const showOverlay = () => { if (overlay) { overlay.show(); overlay.setAlwaysOnTop(true, "screen-saver"); } };
+  const openSettings = () => { showOverlay(); if (overlay) overlay.webContents.send("menu:open-settings"); };
+  const capture = () => { showOverlay(); if (overlay) overlay.webContents.send("hotkey:toggle-capture"); };
+
+  // Tray (menu bar / system tray) — the always-visible entry point so the app
+  // is never an invisible ghost. Works on macOS and Windows.
+  try {
+    const timg = nativeImage.createFromPath(path.join(__dirname, "trayTemplate.png"));
+    timg.setTemplateImage(true);
+    tray = new Tray(timg);
+    tray.setToolTip("SideShift AI");
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: "Capture region", accelerator: "CommandOrControl+Shift+Space", click: capture },
+      { label: "Show / hide overlay", accelerator: "CommandOrControl+\\", click: toggleHide },
+      { label: "Settings…", click: openSettings },
+      { type: "separator" },
+      { label: "About SideShift AI", click: () => shell.openExternal("https://github.com/babybooghost/sideshift.ai") },
+      { label: "Quit SideShift", accelerator: "CommandOrControl+Q", click: () => app.quit() }
+    ]));
+    tray.on("click", showOverlay);
+  } catch (e) { console.log("[sideshift] tray init failed:", String(e)); }
+
+  // Application menu — gives a real menu bar and, crucially, Edit roles so
+  // copy/paste/select-all work inside the settings inputs.
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    { label: app.name, submenu: [
+      { role: "about" }, { type: "separator" },
+      { label: "Settings…", accelerator: "CommandOrControl+,", click: openSettings },
+      { label: "Capture", accelerator: "CommandOrControl+Shift+Space", click: capture },
+      { type: "separator" },
+      { role: "hide" }, { role: "quit" }
+    ]},
+    { label: "Edit", submenu: [
+      { role: "undo" }, { role: "redo" }, { type: "separator" },
+      { role: "cut" }, { role: "copy" }, { role: "paste" }, { role: "selectAll" }
+    ]}
+  ]));
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createOverlay();
+    else showOverlay();
   });
 });
 

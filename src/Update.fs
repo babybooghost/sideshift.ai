@@ -155,6 +155,8 @@ let init () : Model * Cmd<Msg> =
       AnthropicDraft = ""
       OpenRouterDraft = ""
       CriticDraft = SideShift.Api.DEFAULT_CRITIC_MODEL
+      Validating = false
+      KeyError = None
       AccentColor = "#E4571E"
       Opacity = Translucent
       Theme = Dark
@@ -216,24 +218,45 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
             ShowSettings = true
             AnthropicDraft = defaultArg model.AnthropicKey ""
             OpenRouterDraft = defaultArg model.OpenRouterKey ""
-            CriticDraft = model.CriticModel }, effect (fun () -> Interop.setIgnoreMouse false)
-    | CloseSettings -> { model with ShowSettings = false }, effect (fun () -> Interop.setIgnoreMouse true)
+            CriticDraft = model.CriticModel
+            Validating = false
+            KeyError = None }, effect (fun () -> Interop.setIgnoreMouse false)
+    | CloseSettings -> { model with ShowSettings = false; Validating = false; KeyError = None }, effect (fun () -> Interop.setIgnoreMouse true)
     | AnthropicDraftChanged s -> { model with AnthropicDraft = s }, Cmd.none
     | OpenRouterDraftChanged s -> { model with OpenRouterDraft = s }, Cmd.none
     | CriticDraftChanged s -> { model with CriticDraft = s }, Cmd.none
     | SaveSettings ->
         let ak = model.AnthropicDraft.Trim()
-        let ork = model.OpenRouterDraft.Trim()
-        let critic = let c = model.CriticDraft.Trim() in if c = "" then SideShift.Api.DEFAULT_CRITIC_MODEL else c
-        let cmds =
-            [ if ak <> "" then Cmd.OfPromise.perform (fun () -> Interop.saveKey "anthropic" ak) () (fun _ -> SettingsSaved)
-              if ork <> "" then Cmd.OfPromise.perform (fun () -> Interop.saveKey "openrouter" ork) () (fun _ -> SettingsSaved) ]
-        { model with
-            AnthropicKey = (if ak = "" then model.AnthropicKey else Some ak)
-            OpenRouterKey = (if ork = "" then None else Some ork)
-            CriticModel = critic
-            ShowSettings = false },
-        Cmd.batch (effect (fun () -> Interop.setIgnoreMouse true) :: cmds)
+        let effective = if ak <> "" then ak else defaultArg model.AnthropicKey ""
+        if effective = "" then
+            { model with KeyError = Some "An Anthropic API key is required." }, Cmd.none
+        elif not (effective.StartsWith "sk-") then
+            { model with KeyError = Some "That does not look like an API key. Anthropic keys start with sk-ant-." }, Cmd.none
+        else
+            { model with Validating = true; KeyError = None },
+            Cmd.OfPromise.either
+                (fun () -> Interop.validateKey "anthropic" effective) ()
+                (fun r -> KeyValidated(unbox r?ok, unbox r?valid))
+                (fun _ -> KeyValidated(false, false))
+    | KeyValidated(reachable, valid) ->
+        if reachable && not valid then
+            { model with Validating = false; KeyError = Some "That API key was rejected (401). Check it and try again." }, Cmd.none
+        else
+            // valid, or offline (could not reach the provider) -> accept and persist.
+            let ak = model.AnthropicDraft.Trim()
+            let ork = model.OpenRouterDraft.Trim()
+            let critic = let c = model.CriticDraft.Trim() in if c = "" then SideShift.Api.DEFAULT_CRITIC_MODEL else c
+            let cmds =
+                [ if ak <> "" then Cmd.OfPromise.perform (fun () -> Interop.saveKey "anthropic" ak) () (fun _ -> SettingsSaved)
+                  if ork <> "" then Cmd.OfPromise.perform (fun () -> Interop.saveKey "openrouter" ork) () (fun _ -> SettingsSaved) ]
+            { model with
+                AnthropicKey = (if ak = "" then model.AnthropicKey else Some ak)
+                OpenRouterKey = (if ork = "" then None else Some ork)
+                CriticModel = critic
+                Validating = false
+                KeyError = None
+                ShowSettings = false },
+            Cmd.batch (effect (fun () -> Interop.setIgnoreMouse true) :: cmds)
     | SettingsSaved -> model, Cmd.none
     | SetAccent c ->
         let m2 = { model with AccentColor = c }

@@ -61,6 +61,8 @@ type Model =
       AnthropicDraft: string
       OpenRouterDraft: string
       CriticDraft: string
+      Validating: bool
+      KeyError: string option
       // appearance
       AccentColor: string
       Opacity: Surface
@@ -96,6 +98,7 @@ type Msg =
     | OpenRouterDraftChanged of string
     | CriticDraftChanged of string
     | SaveSettings
+    | KeyValidated of bool * bool // reachable, valid
     | SettingsSaved
     | SetAccent of string
     | SetOpacity of Surface

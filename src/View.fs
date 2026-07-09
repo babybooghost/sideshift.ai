@@ -319,12 +319,16 @@ let private settingsModal (model: Model) dispatch =
                         prop.style [ style.marginTop 14; style.width (length.percent 100); style.padding (9, 12); style.borderRadius 8; style.cursor.pointer
                                      style.fontSize 12; style.custom ("border", sprintf "1px solid %s" border); style.custom ("background", "transparent"); style.color textSec ]
                     ]
+                    (match model.KeyError with
+                     | Some e -> Html.div [ prop.style [ style.fontSize 12.5; style.color "#F0865A"; style.marginTop 14 ]; prop.text e ]
+                     | None -> Html.none)
                     Html.div [
-                        prop.style [ style.display.flex; style.custom ("gap", "9px"); style.marginTop 20 ]
+                        prop.style [ style.display.flex; style.custom ("gap", "9px"); style.marginTop 14 ]
                         prop.children [
                             Html.button [
                                 prop.onClick (fun _ -> dispatch SaveSettings)
-                                prop.text "Save"
+                                prop.disabled model.Validating
+                                prop.text (if model.Validating then "Checking key…" else "Save")
                                 prop.style [ style.custom ("flex", "1"); style.padding 10; style.borderRadius 8; style.custom ("border", "none")
                                              style.custom ("background", accent); style.color "#FFF"; style.cursor.pointer; style.fontWeight 600
                                              style.custom ("boxShadow", "0 4px 18px color-mix(in srgb, var(--accent) 40%, transparent)") ]

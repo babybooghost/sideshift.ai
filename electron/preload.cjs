@@ -24,7 +24,11 @@ contextBridge.exposeInMainWorld("sideshift", {
   // Global-hotkey events into the Elmish loop.
   onToggleCapture: (cb) => ipcRenderer.on("hotkey:toggle-capture", () => cb()),
   onNudge: (cb) => ipcRenderer.on("hotkey:nudge", (_e, dx, dy) => cb(dx, dy)),
+  onOpenSettings: (cb) => ipcRenderer.on("menu:open-settings", () => cb()),
   openScreenPrivacy: () => ipcRenderer.invoke("open-screen-privacy"),
+
+  // Validate an API key against the provider (real network check). -> {ok, valid, status}
+  validateKey: (provider, key) => ipcRenderer.invoke("validate-key", { provider, key }),
 
   // Google Sign-In (PKCE loopback flow runs in main).
   googleSignIn: (clientId, clientSecret) => ipcRenderer.invoke("google-signin", { clientId, clientSecret }),

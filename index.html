@@ -13,7 +13,14 @@
         /* Overlay is transparent; individual widgets paint their own surfaces. */
         background: transparent;
         overflow: hidden;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        /* Transparent windows disable subpixel AA; force grayscale AA so text
+           renders crisp instead of thin/weird. */
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-size: 14px;
+        letter-spacing: -0.005em;
       }
       /* Whole overlay is click-through by default; interactive elements opt back in. */
       body { pointer-events: none; }
