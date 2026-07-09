@@ -4,8 +4,9 @@ open Fable.Core.JsInterop
 open Elmish
 open SideShift.Types
 
+// Warm brand-family palette so multiple widgets stay distinguishable but on-brand.
 let private palette =
-    [| "#6366f1"; "#ec4899"; "#10b981"; "#f59e0b"; "#06b6d4"; "#8b5cf6"; "#ef4444" |]
+    [| "#F5B23B"; "#E4571E"; "#E8912B"; "#D96B3A"; "#B99433"; "#C0491C"; "#E0A050" |]
 
 let private titleFor mode =
     match mode with

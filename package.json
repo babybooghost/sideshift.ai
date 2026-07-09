@@ -16,7 +16,7 @@
     "electron:dev": "cross-env NODE_ENV=development electron .",
     "build": "dotnet fable src --outDir dist-fable && vite build",
     "start": "npm run build && electron .",
-    "icon": "python3 build/make_icon.py",
+    "icon": "electron build/render-icon.mjs build/icon.svg build/icon.png 1024",
     "dist": "npm run build && electron-builder -mw",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win"

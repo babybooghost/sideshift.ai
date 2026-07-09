@@ -6,6 +6,22 @@ open SideShift.Interop
 
 let private px (v: float) = sprintf "%gpx" v
 
+// ---- theme tokens (warm gold/orange over warm-dark surfaces) ----------------
+let private surface = "#17130E"
+let private raised = "#1F1913"
+let private chip = "#241C14"
+let private inputBg = "#14100B"
+let private border = "#33291D"
+let private borderSoft = "#2A2016"
+let private textPri = "#F3ECE0"
+let private textMut = "#A89A86"
+let private textSec = "#D9CDBB"
+let private gold = "#F5B23B"
+let private orange = "#E4571E"
+let private grad = "linear-gradient(135deg, #F5B23B 0%, #E4571E 100%)"
+let private shadowLg = "0 18px 50px rgba(24,14,6,0.55)"
+let private shadowMd = "0 8px 28px rgba(24,14,6,0.5)"
+
 let private hoverProps =
     [ prop.onMouseEnter (fun _ -> setIgnoreMouse false)
       prop.onMouseLeave (fun _ -> setIgnoreMouse true) ]
@@ -13,20 +29,41 @@ let private hoverProps =
 let private isCodey (s: string) =
     s.Contains("```") || s.Contains("@@ ") || s.Contains("\n    ") || s.StartsWith("---")
 
+// Small brand mark echoing the app icon: gradient rounded square + "S".
+let private brandBadge (size: int) =
+    Html.div [
+        prop.style [ style.width size; style.height size; style.borderRadius (size / 4)
+                     style.custom ("background", grad); style.display.flex; style.alignItems.center
+                     style.justifyContent.center; style.color "#FBF6EC"; style.fontWeight 800
+                     style.fontSize (int (float size * 0.6)); style.lineHeight 1
+                     style.custom ("boxShadow", "0 2px 10px rgba(228,87,30,0.45)") ]
+        prop.children [ Html.span [ prop.text "S" ] ]
+    ]
+
+let private gradButton (label: string) (onClick: unit -> unit) =
+    Html.button [
+        prop.onClick (fun _ -> onClick ())
+        prop.text label
+        prop.style [ style.custom ("border", "none"); style.custom ("background", grad); style.color "#FFF7EC"
+                     style.padding (10, 16); style.borderRadius 10; style.cursor.pointer; style.fontWeight 700
+                     style.custom ("boxShadow", "0 6px 20px rgba(228,87,30,0.4)") ]
+    ]
+
 // ---- settings modal --------------------------------------------------------
 let private field (label: string) (placeholder: string) (value: string) (onChange: string -> unit) =
     Html.div [
-        prop.style [ style.marginTop 12 ]
+        prop.style [ style.marginTop 14 ]
         prop.children [
-            Html.label [ prop.style [ style.fontSize 12; style.custom ("color", "#9a9aad") ]; prop.text label ]
+            Html.label [ prop.style [ style.fontSize 12; style.custom ("color", textMut); style.custom ("letterSpacing", "0.02em") ]
+                         prop.text label ]
             Html.input [
                 prop.type' "password"
                 prop.placeholder placeholder
                 prop.value value
                 prop.onChange onChange
-                prop.style [ style.width (length.percent 100); style.padding 9; style.borderRadius 8; style.marginTop 4
-                             style.custom ("border", "1px solid #33333f"); style.custom ("background", "#0e0e14")
-                             style.color "#fff"; style.boxSizing.borderBox ]
+                prop.style [ style.width (length.percent 100); style.padding 10; style.borderRadius 9; style.marginTop 5
+                             style.custom ("border", sprintf "1px solid %s" border); style.custom ("background", inputBg)
+                             style.color textPri; style.boxSizing.borderBox; style.fontSize 13 ]
             ]
         ]
     ]
@@ -36,49 +73,57 @@ let private settingsModal (model: Model) dispatch =
         prop.className "ss-interactive"
         prop.style [ style.position.fixedRelativeToWindow; style.custom ("inset", "0"); style.display.flex
                      style.alignItems.center; style.justifyContent.center
-                     style.custom ("background", "rgba(10,10,15,0.55)"); style.custom ("backdropFilter", "blur(3px)") ]
+                     style.custom ("background", "rgba(20,14,8,0.6)"); style.custom ("backdropFilter", "blur(4px)") ]
         yield! hoverProps
         prop.children [
             Html.div [
-                prop.style [ style.width 420; style.custom ("background", "#16161d"); style.borderRadius 14; style.padding 22
-                             style.color "#e6e6ef"; style.custom ("border", "1px solid #2a2a37")
-                             style.custom ("boxShadow", "0 20px 60px rgba(0,0,0,0.5)") ]
+                prop.style [ style.width 440; style.custom ("background", raised); style.borderRadius 16; style.padding 26
+                             style.color textPri; style.custom ("border", sprintf "1px solid %s" border)
+                             style.custom ("boxShadow", shadowLg) ]
                 prop.children [
-                    Html.h3 [ prop.style [ style.margin 0 ]; prop.text "SideShift AI · settings" ]
-                    Html.p [ prop.style [ style.custom ("color", "#9a9aad"); style.fontSize 13; style.marginTop 6 ]
+                    Html.div [
+                        prop.style [ style.display.flex; style.alignItems.center; style.custom ("gap", "12px") ]
+                        prop.children [
+                            brandBadge 34
+                            Html.div [
+                                prop.children [
+                                    Html.div [ prop.style [ style.fontWeight 800; style.fontSize 17; style.custom ("letterSpacing", "0.14em") ]
+                                               prop.text "SIDESHIFT" ]
+                                    Html.div [ prop.style [ style.fontSize 10; style.custom ("color", gold); style.custom ("letterSpacing", "0.22em") ]
+                                               prop.text "DYNAMIC MOTION & TRANSITION" ]
+                                ]
+                            ]
+                        ]
+                    ]
+                    Html.p [ prop.style [ style.custom ("color", textMut); style.fontSize 13; style.marginTop 14; style.lineHeight 1.5 ]
                              prop.text "Keys stored encrypted on this machine only. Anthropic runs capture/answers; OpenRouter is optional and powers Verify's independent cross-model critic." ]
                     field "Anthropic API key (required)" "sk-ant-..." model.AnthropicDraft (fun v -> dispatch (AnthropicDraftChanged v))
                     field "OpenRouter API key (optional)" "sk-or-..." model.OpenRouterDraft (fun v -> dispatch (OpenRouterDraftChanged v))
                     Html.div [
-                        prop.style [ style.marginTop 12 ]
+                        prop.style [ style.marginTop 14 ]
                         prop.children [
-                            Html.label [ prop.style [ style.fontSize 12; style.custom ("color", "#9a9aad") ]
+                            Html.label [ prop.style [ style.fontSize 12; style.custom ("color", textMut) ]
                                          prop.text "Verify critic model (OpenRouter id)" ]
                             Html.input [
                                 prop.type' "text"
                                 prop.placeholder "openai/gpt-4o"
                                 prop.value model.CriticDraft
                                 prop.onChange (fun (v: string) -> dispatch (CriticDraftChanged v))
-                                prop.style [ style.width (length.percent 100); style.padding 9; style.borderRadius 8; style.marginTop 4
-                                             style.custom ("border", "1px solid #33333f"); style.custom ("background", "#0e0e14")
-                                             style.color "#fff"; style.boxSizing.borderBox ]
+                                prop.style [ style.width (length.percent 100); style.padding 10; style.borderRadius 9; style.marginTop 5
+                                             style.custom ("border", sprintf "1px solid %s" border); style.custom ("background", inputBg)
+                                             style.color textPri; style.boxSizing.borderBox; style.fontSize 13 ]
                             ]
                         ]
                     ]
                     Html.div [
-                        prop.style [ style.display.flex; style.custom ("gap", "8px"); style.marginTop 16 ]
+                        prop.style [ style.display.flex; style.custom ("gap", "10px"); style.marginTop 20 ]
                         prop.children [
-                            Html.button [
-                                prop.onClick (fun _ -> dispatch SaveSettings)
-                                prop.text "Save"
-                                prop.style [ style.custom ("flex", "1"); style.padding 10; style.borderRadius 8; style.custom ("border", "none")
-                                             style.custom ("background", "#6366f1"); style.color "#fff"; style.cursor.pointer; style.fontWeight 600 ]
-                            ]
+                            Html.div [ prop.style [ style.custom ("flex", "1") ]; prop.children [ gradButton "Save" (fun () -> dispatch SaveSettings) ] ]
                             Html.button [
                                 prop.onClick (fun _ -> dispatch CloseSettings)
                                 prop.text "Cancel"
-                                prop.style [ style.padding 10; style.borderRadius 8; style.custom ("border", "1px solid #33333f")
-                                             style.custom ("background", "transparent"); style.color "#cfcfe0"; style.cursor.pointer ]
+                                prop.style [ style.padding (10, 16); style.borderRadius 10; style.custom ("border", sprintf "1px solid %s" border)
+                                             style.custom ("background", "transparent"); style.color textSec; style.cursor.pointer ]
                             ]
                         ]
                     ]
@@ -95,7 +140,7 @@ let private CaptureSelector =
         Html.div [
             prop.className "ss-interactive"
             prop.style [ style.position.fixedRelativeToWindow; style.custom ("inset", "0"); style.cursor "crosshair"
-                         style.custom ("background", "rgba(10,12,20,0.20)") ]
+                         style.custom ("background", "rgba(20,14,8,0.22)") ]
             yield! hoverProps
             prop.onMouseDown (fun e -> setStart (Some(e.clientX, e.clientY)); setRect None)
             prop.onMouseMove (fun e ->
@@ -111,10 +156,11 @@ let private CaptureSelector =
                 setRect None)
             prop.children [
                 Html.div [
-                    prop.style [ style.position.absolute; style.top 14; style.left (length.percent 50)
+                    prop.style [ style.position.absolute; style.top 16; style.left (length.percent 50)
                                  style.transform.translate (length.percent -50, length.px 0)
-                                 style.custom ("background", "#16161d"); style.color "#cfcfe0"; style.padding (8, 14)
-                                 style.borderRadius 20; style.fontSize 13; style.custom ("border", "1px solid #2a2a37") ]
+                                 style.custom ("background", raised); style.color textSec; style.padding (9, 16)
+                                 style.borderRadius 22; style.fontSize 13; style.custom ("border", sprintf "1px solid %s" border)
+                                 style.custom ("boxShadow", shadowMd) ]
                     prop.text "Drag a box over any text or code · Esc to cancel"
                 ]
                 match rect with
@@ -122,8 +168,8 @@ let private CaptureSelector =
                     Html.div [
                         prop.style [ style.position.absolute; style.custom ("left", px x); style.custom ("top", px y)
                                      style.custom ("width", px w); style.custom ("height", px h)
-                                     style.custom ("border", "2px solid #6366f1")
-                                     style.custom ("background", "rgba(99,102,241,0.12)"); style.borderRadius 4 ]
+                                     style.custom ("border", sprintf "2px solid %s" gold)
+                                     style.custom ("background", "rgba(245,178,59,0.12)"); style.borderRadius 4 ]
                     ]
                 | None -> Html.none
             ]
@@ -135,16 +181,15 @@ let private pendingBar (ax: float) (ay: float) dispatch =
         Html.button [
             prop.text label
             prop.onClick (fun _ -> dispatch (QuickAction mode))
-            prop.style [ style.custom ("border", "none"); style.custom ("background", "transparent"); style.color "#e6e6ef"
-                         style.padding (6, 10); style.cursor.pointer; style.borderRadius 6; style.fontSize 13 ]
+            prop.style [ style.custom ("border", "none"); style.custom ("background", "transparent"); style.color textPri
+                         style.padding (7, 11); style.cursor.pointer; style.borderRadius 7; style.fontSize 13; style.fontWeight 600 ]
         ]
     Html.div [
         prop.className "ss-interactive"
         prop.style [ style.position.fixedRelativeToWindow; style.custom ("left", px (min ax 1100.0))
-                     style.custom ("top", px (max (ay - 44.0) 8.0)); style.display.flex; style.custom ("gap", "2px")
-                     style.custom ("background", "#16161d"); style.custom ("border", "1px solid #2a2a37")
-                     style.borderRadius 10; style.padding 4; style.custom ("boxShadow", "0 8px 30px rgba(0,0,0,0.45)")
-                     style.custom ("zIndex", "2000000") ]
+                     style.custom ("top", px (max (ay - 46.0) 8.0)); style.display.flex; style.alignItems.center
+                     style.custom ("gap", "2px"); style.custom ("background", raised); style.custom ("border", sprintf "1px solid %s" border)
+                     style.borderRadius 12; style.padding 5; style.custom ("boxShadow", shadowMd); style.custom ("zIndex", "2000000") ]
         yield! hoverProps
         prop.children [
             Html.span [ prop.style [ style.fontSize 15; style.padding (6, 6) ]; prop.text "⚡" ]
@@ -155,7 +200,7 @@ let private pendingBar (ax: float) (ay: float) dispatch =
             Html.button [
                 prop.text "✕"
                 prop.onClick (fun _ -> dispatch DismissPending)
-                prop.style [ style.custom ("border", "none"); style.custom ("background", "transparent"); style.color "#7a7a8d"
+                prop.style [ style.custom ("border", "none"); style.custom ("background", "transparent"); style.color "#8A7C68"
                              style.cursor.pointer; style.padding (6, 8) ]
             ]
         ]
@@ -170,20 +215,21 @@ let private bubble (m: ChatMsg) =
                      style.marginBottom 8 ]
         prop.children [
             Html.div [
-                prop.style [ style.maxWidth (length.percent 88); style.padding (8, 10); style.borderRadius 10
-                             style.fontSize 13; style.custom ("whiteSpace", "pre-wrap"); style.custom ("wordBreak", "break-word")
+                prop.style [ style.maxWidth (length.percent 88); style.padding (9, 11); style.borderRadius 11
+                             style.fontSize 13; style.lineHeight 1.5; style.custom ("whiteSpace", "pre-wrap")
+                             style.custom ("wordBreak", "break-word")
                              style.custom ("fontFamily", (if code then "ui-monospace, SFMono-Regular, Menlo, monospace" else "inherit"))
-                             style.custom ("background", (if mine then "#6366f1" else "#20202b"))
-                             style.color (if mine then "#fff" else "#e6e6ef") ]
+                             style.custom ("background", (if mine then grad else chip))
+                             style.color (if mine then "#FFF7EC" else textPri) ]
                 prop.children [
                     Html.text m.Text
                     if code then
                         Html.button [
                             prop.text "copy"
                             prop.onClick (fun _ -> copy m.Text)
-                            prop.style [ style.display.block; style.marginTop 6; style.fontSize 11; style.cursor.pointer
-                                         style.custom ("border", "1px solid #3a3a48"); style.custom ("background", "transparent")
-                                         style.color "#a5a5ba"; style.borderRadius 5; style.padding (2, 6) ]
+                            prop.style [ style.display.block; style.marginTop 7; style.fontSize 11; style.cursor.pointer
+                                         style.custom ("border", sprintf "1px solid %s" border); style.custom ("background", "transparent")
+                                         style.color "#B7A88F"; style.borderRadius 6; style.padding (2, 7) ]
                         ]
                 ]
             ]
@@ -197,67 +243,68 @@ let private widgetView (model: Model) (w: Widget) dispatch =
         prop.style [ style.position.absolute; style.custom ("left", px w.PosX); style.custom ("top", px w.PosY)
                      style.custom ("width", px w.Width); style.custom ("height", px w.Height)
                      style.custom ("zIndex", string w.Z); style.display.flex; style.flexDirection.column
-                     style.custom ("background", "#121218"); style.borderRadius 12
-                     style.custom ("border", sprintf "1px solid %s" w.Color)
-                     style.custom ("boxShadow", "0 16px 50px rgba(0,0,0,0.5)"); style.overflow.hidden ]
+                     style.custom ("background", surface); style.borderRadius 14
+                     style.custom ("border", sprintf "1px solid %s" border)
+                     style.custom ("boxShadow", shadowLg); style.overflow.hidden ]
         yield! hoverProps
         prop.onMouseDown (fun _ -> dispatch (Focus w.Id))
         prop.children [
             // header / drag handle
             Html.div [
-                prop.style [ style.display.flex; style.alignItems.center; style.custom ("gap", "6px")
-                             style.padding (8, 10); style.custom ("background", w.Color); style.color "#fff"
-                             style.cursor "grab"; style.custom ("userSelect", "none") ]
+                prop.style [ style.display.flex; style.alignItems.center; style.custom ("gap", "7px")
+                             style.padding (9, 11)
+                             style.custom ("background", sprintf "linear-gradient(135deg, %s 0%%, %s 130%%)" w.Color "#7A3A12")
+                             style.color "#FFF7EC"; style.cursor "grab"; style.custom ("userSelect", "none") ]
                 prop.onMouseDown (fun e -> dispatch (StartDrag(w.Id, e.clientX - w.PosX, e.clientY - w.PosY)))
                 prop.children [
-                    Html.span [ prop.style [ style.fontWeight 700; style.fontSize 13 ]; prop.text w.Title ]
+                    Html.span [ prop.style [ style.fontWeight 700; style.fontSize 13; style.custom ("letterSpacing", "0.02em") ]; prop.text w.Title ]
                     if w.Via <> "" then
-                        Html.span [ prop.style [ style.fontSize 10; style.custom ("opacity", "0.8")
-                                                 style.custom ("background", "rgba(0,0,0,0.25)"); style.padding (1, 6); style.borderRadius 8 ]
+                        Html.span [ prop.style [ style.fontSize 10; style.custom ("opacity", "0.85")
+                                                 style.custom ("background", "rgba(0,0,0,0.28)"); style.padding (1, 7); style.borderRadius 8 ]
                                     prop.text w.Via ]
                     Html.div [ prop.style [ style.custom ("flex", "1") ] ]
                     Html.button [
                         prop.text "—"
                         prop.onClick (fun e -> e.stopPropagation (); dispatch (Minimize w.Id))
                         prop.onMouseDown (fun e -> e.stopPropagation ())
-                        prop.style [ style.custom ("border", "none"); style.custom ("background", "transparent"); style.color "#fff"
+                        prop.style [ style.custom ("border", "none"); style.custom ("background", "transparent"); style.color "#FFF7EC"
                                      style.cursor.pointer; style.fontWeight 700 ]
                     ]
                     Html.button [
                         prop.text "✕"
                         prop.onClick (fun e -> e.stopPropagation (); dispatch (RequestClose w.Id))
                         prop.onMouseDown (fun e -> e.stopPropagation ())
-                        prop.style [ style.custom ("border", "none"); style.custom ("background", "transparent"); style.color "#fff"
+                        prop.style [ style.custom ("border", "none"); style.custom ("background", "transparent"); style.color "#FFF7EC"
                                      style.cursor.pointer; style.fontWeight 700 ]
                     ]
                 ]
             ]
             // context thumbnail
             Html.div [
-                prop.style [ style.padding (6, 10); style.custom ("borderBottom", "1px solid #22222c") ]
+                prop.style [ style.padding (7, 11); style.custom ("borderBottom", sprintf "1px solid %s" borderSoft) ]
                 prop.children [
                     Html.img [
                         prop.src w.Capture.ImageDataUrl
-                        prop.style [ style.maxWidth (length.percent 100); style.maxHeight 90; style.borderRadius 6
-                                     style.custom ("border", "1px solid #2a2a37"); style.display.block ]
+                        prop.style [ style.maxWidth (length.percent 100); style.maxHeight 90; style.borderRadius 7
+                                     style.custom ("border", sprintf "1px solid %s" border); style.display.block ]
                     ]
                 ]
             ]
             // conversation
             Html.div [
-                prop.style [ style.custom ("flex", "1"); style.overflowY.auto; style.padding 10 ]
+                prop.style [ style.custom ("flex", "1"); style.overflowY.auto; style.padding 11 ]
                 prop.children [
                     yield! (w.Messages |> List.map bubble)
                     if w.Streaming then bubble { Role = "assistant"; Text = (if w.StreamBuf = "" then "…" else w.StreamBuf) }
                     match w.Error with
-                    | Some e -> Html.div [ prop.style [ style.color "#ff6b6b"; style.fontSize 12 ]; prop.text ("Error: " + e) ]
+                    | Some e -> Html.div [ prop.style [ style.color "#F08A5D"; style.fontSize 12 ]; prop.text ("Error: " + e) ]
                     | None -> Html.none
                 ]
             ]
             // input row
             Html.div [
-                prop.style [ style.display.flex; style.custom ("gap", "6px"); style.padding 8
-                             style.custom ("borderTop", "1px solid #22222c") ]
+                prop.style [ style.display.flex; style.custom ("gap", "7px"); style.padding 9
+                             style.custom ("borderTop", sprintf "1px solid %s" borderSoft) ]
                 prop.children [
                     Html.textarea [
                         prop.value w.Input
@@ -268,16 +315,16 @@ let private widgetView (model: Model) (w: Widget) dispatch =
                             if e.key = "Enter" && not e.shiftKey then
                                 e.preventDefault ()
                                 dispatch (Send w.Id))
-                        prop.style [ style.custom ("flex", "1"); style.resize.none; style.padding 8; style.borderRadius 8
-                                     style.custom ("border", "1px solid #2a2a37"); style.custom ("background", "#0e0e14")
-                                     style.color "#fff"; style.fontSize 13; style.boxSizing.borderBox ]
+                        prop.style [ style.custom ("flex", "1"); style.resize.none; style.padding 9; style.borderRadius 9
+                                     style.custom ("border", sprintf "1px solid %s" border); style.custom ("background", inputBg)
+                                     style.color textPri; style.fontSize 13; style.boxSizing.borderBox ]
                     ]
                     Html.button [
                         prop.text "↑"
                         prop.disabled w.Streaming
                         prop.onClick (fun _ -> dispatch (Send w.Id))
-                        prop.style [ style.custom ("border", "none"); style.custom ("background", w.Color); style.color "#fff"
-                                     style.borderRadius 8; style.width 40; style.cursor.pointer; style.fontWeight 700 ]
+                        prop.style [ style.custom ("border", "none"); style.custom ("background", grad); style.color "#FFF7EC"
+                                     style.borderRadius 9; style.width 42; style.cursor.pointer; style.fontWeight 700 ]
                     ]
                 ]
             ]
@@ -294,23 +341,23 @@ let private widgetView (model: Model) (w: Widget) dispatch =
                 Html.div [
                     prop.style [ style.position.absolute; style.custom ("inset", "0"); style.display.flex
                                  style.flexDirection.column; style.alignItems.center; style.justifyContent.center
-                                 style.custom ("gap", "10px"); style.custom ("background", "rgba(10,10,15,0.82)") ]
+                                 style.custom ("gap", "12px"); style.custom ("background", "rgba(20,14,8,0.86)") ]
                     prop.children [
-                        Html.div [ prop.style [ style.color "#cfcfe0"; style.fontSize 13 ]; prop.text "Close this side-quest?" ]
+                        Html.div [ prop.style [ style.color textSec; style.fontSize 13 ]; prop.text "Close this side-quest?" ]
                         Html.div [
-                            prop.style [ style.display.flex; style.custom ("gap", "8px") ]
+                            prop.style [ style.display.flex; style.custom ("gap", "9px") ]
                             prop.children [
                                 Html.button [
                                     prop.text "Merge to context"
                                     prop.onClick (fun _ -> dispatch (CloseWith(w.Id, Merge)))
-                                    prop.style [ style.custom ("border", "none"); style.custom ("background", "#10b981")
-                                                 style.color "#fff"; style.padding (8, 12); style.borderRadius 8; style.cursor.pointer ]
+                                    prop.style [ style.custom ("border", "none"); style.custom ("background", "#2FA36B")
+                                                 style.color "#FFF"; style.padding (9, 13); style.borderRadius 9; style.cursor.pointer; style.fontWeight 600 ]
                                 ]
                                 Html.button [
                                     prop.text "Discard"
                                     prop.onClick (fun _ -> dispatch (CloseWith(w.Id, Discard)))
-                                    prop.style [ style.custom ("border", "1px solid #3a3a48"); style.custom ("background", "transparent")
-                                                 style.color "#e6e6ef"; style.padding (8, 12); style.borderRadius 8; style.cursor.pointer ]
+                                    prop.style [ style.custom ("border", sprintf "1px solid %s" border); style.custom ("background", "transparent")
+                                                 style.color textPri; style.padding (9, 13); style.borderRadius 9; style.cursor.pointer ]
                                 ]
                             ]
                         ]
@@ -327,8 +374,8 @@ let private minimap (model: Model) dispatch =
     else
         Html.div [
             prop.className "ss-interactive"
-            prop.style [ style.position.fixedRelativeToWindow; style.right 6; style.top (length.percent 30)
-                         style.display.flex; style.flexDirection.column; style.custom ("gap", "8px") ]
+            prop.style [ style.position.fixedRelativeToWindow; style.right 7; style.top (length.percent 30)
+                         style.display.flex; style.flexDirection.column; style.custom ("gap", "9px") ]
             yield! hoverProps
             prop.children [
                 yield! (mins |> List.map (fun w ->
@@ -337,7 +384,7 @@ let private minimap (model: Model) dispatch =
                         prop.onClick (fun _ -> dispatch (Restore w.Id))
                         prop.style [ style.width 16; style.height 16; style.borderRadius 8; style.cursor.pointer
                                      style.custom ("background", w.Color)
-                                     style.custom ("boxShadow", "0 0 0 2px rgba(255,255,255,0.15)") ]
+                                     style.custom ("boxShadow", "0 0 0 2px rgba(255,247,236,0.15)") ]
                     ]))
             ]
         ]
@@ -346,24 +393,28 @@ let private minimap (model: Model) dispatch =
 let private dock dispatch =
     Html.div [
         prop.className "ss-interactive"
-        prop.style [ style.position.fixedRelativeToWindow; style.right 16; style.bottom 16; style.display.flex
-                     style.custom ("gap", "8px"); style.alignItems.center ]
+        prop.style [ style.position.fixedRelativeToWindow; style.right 18; style.bottom 18; style.display.flex
+                     style.custom ("gap", "9px"); style.alignItems.center ]
         yield! hoverProps
         prop.children [
             Html.button [
                 prop.title "Highlight a region (⌘⇧Space)"
-                prop.text "⚡ Capture"
                 prop.onClick (fun _ -> dispatch ToggleCapture)
-                prop.style [ style.custom ("border", "none"); style.custom ("background", "#6366f1"); style.color "#fff"
-                             style.padding (10, 14); style.borderRadius 24; style.cursor.pointer; style.fontWeight 600
-                             style.custom ("boxShadow", "0 8px 30px rgba(99,102,241,0.5)") ]
+                prop.style [ style.custom ("border", "none"); style.custom ("background", grad); style.color "#FFF7EC"
+                             style.padding (11, 16); style.borderRadius 26; style.cursor.pointer; style.fontWeight 700
+                             style.display.flex; style.alignItems.center; style.custom ("gap", "8px")
+                             style.custom ("boxShadow", "0 8px 26px rgba(228,87,30,0.45)") ]
+                prop.children [
+                    Html.span [ prop.text "⚡" ]
+                    Html.span [ prop.text "Capture" ]
+                ]
             ]
             Html.button [
                 prop.title "Settings / API keys"
                 prop.text "⚙"
                 prop.onClick (fun _ -> dispatch OpenSettings)
-                prop.style [ style.custom ("border", "none"); style.custom ("background", "#20202b"); style.color "#cfcfe0"
-                             style.width 40; style.height 40; style.borderRadius 20; style.cursor.pointer ]
+                prop.style [ style.custom ("border", sprintf "1px solid %s" border); style.custom ("background", raised); style.color textSec
+                             style.width 42; style.height 42; style.borderRadius 21; style.cursor.pointer ]
             ]
         ]
     ]

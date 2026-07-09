@@ -58,7 +58,7 @@ Windows installers can't be built on macOS, so releases go through CI. Push a ta
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
-The app icon is generated from a single source with no image deps: `npm run icon` (→ `build/icon.png`), which electron-builder converts to `.icns`/`.ico`.
+The app icon is the SideShift "S" mark ([build/icon.svg](build/icon.svg)), rendered to `build/icon.png` with `npm run icon` (Chromium rasterizer, no image deps); electron-builder converts that to `.icns`/`.ico`.
 
 ### Beta testers — opening an unsigned build
 
