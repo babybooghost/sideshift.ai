@@ -22,14 +22,15 @@ let private mono = "ui-monospace, SFMono-Regular, Menlo, monospace"
 // Brand mark (S pierced by an arrow) — the one place gradient/gold appears.
 let private markSvg =
     "<svg viewBox='0 0 1024 1024' width='100%' height='100%' xmlns='http://www.w3.org/2000/svg'>"
-    + "<defs><linearGradient id='ssG' x1='330' y1='280' x2='690' y2='760' gradientUnits='userSpaceOnUse'>"
+    + "<defs><linearGradient id='ssG' x1='330' y1='270' x2='700' y2='770' gradientUnits='userSpaceOnUse'>"
     + "<stop offset='0' stop-color='#F8C64C'/><stop offset='1' stop-color='#E68A26'/></linearGradient>"
-    + "<linearGradient id='ssA' x1='220' y1='740' x2='860' y2='230' gradientUnits='userSpaceOnUse'>"
+    + "<linearGradient id='ssA' x1='200' y1='730' x2='850' y2='235' gradientUnits='userSpaceOnUse'>"
     + "<stop offset='0' stop-color='#D8481A'/><stop offset='1' stop-color='#F5732E'/></linearGradient></defs>"
-    + "<path d='M 220 726 C 350 706 384 566 478 544 C 574 522 560 414 668 392 C 730 379 792 340 842 274' fill='none' stroke='url(#ssA)' stroke-width='66' stroke-linecap='round'/>"
-    + "<path d='M 712 372 C 700 292 590 276 508 312 C 404 352 402 452 512 500 C 624 548 654 648 566 710 C 480 764 356 744 314 668' fill='none' stroke='url(#ssG)' stroke-width='122' stroke-linecap='round' stroke-linejoin='round'/>"
-    + "<path d='M 654 400 C 732 378 794 338 842 274' fill='none' stroke='url(#ssA)' stroke-width='66' stroke-linecap='round'/>"
-    + "<path d='M 884 232 L 788 252 L 836 336 Z' fill='#F5732E'/></svg>"
+    + "<path d='M 210 700 C 300 664 298 588 380 558 C 468 526 470 470 540 452 C 616 431 648 396 694 366' fill='none' stroke='url(#ssA)' stroke-width='44' stroke-linecap='round'/>"
+    + "<g transform='translate(96 0) skewX(-11)'><path d='M 688 374 C 674 308 588 294 518 320 C 428 354 428 442 522 486 C 620 530 646 622 566 678 C 494 728 392 716 348 658' fill='none' stroke='url(#ssG)' stroke-width='100' stroke-linecap='round' stroke-linejoin='round'/></g>"
+    + "<path d='M 682 372 C 724 342 772 300 828 254' fill='none' stroke='url(#ssA)' stroke-width='44' stroke-linecap='round'/>"
+    + "<path d='M 828 254 L 742 268' fill='none' stroke='url(#ssA)' stroke-width='44' stroke-linecap='round'/>"
+    + "<path d='M 828 254 L 818 340' fill='none' stroke='url(#ssA)' stroke-width='44' stroke-linecap='round'/></svg>"
 
 // Inline SVG glyphs (currentColor), so no emoji-as-icon.
 let private icoGear =
