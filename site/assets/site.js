@@ -9,7 +9,9 @@ function hero3d(){
   const scene = new THREE.Scene();
   const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
   cam.position.z = 6.2;
-  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true }); }
+  catch(e){ mount.style.display = "none"; return; }   // no WebGL -> skip 3D, site keeps working
   renderer.setClearColor(0x000000, 0);
   mount.appendChild(renderer.domElement);
 
@@ -189,6 +191,67 @@ function accentSampler(){
   apply(saved);
 }
 
+/* ---------- interactive Verify demo ---------- */
+function verifyDemo(){
+  const w = document.getElementById("vwidget");
+  if(!w) return;
+  const CLAIMS = [
+    { src:'"Honey never spoils. 3,000-year-old tomb honey is still edible."', conf:72,
+      verdict:'Broadly true, but "never" is overstated and the tomb detail needs a live check.',
+      tags:[["ESTABLISHED","#3FA35B","Honey resists spoilage. Low water, acidic."],
+            ["UNCERTAIN","#E8912B","\"Never.\" Can ferment if moisture enters."],
+            ["NEEDS LIVE CHECK","#4C86C6","The tomb-honey story. Verify the source."]] },
+    { src:'"The Great Wall of China is visible from space with the naked eye."', conf:11,
+      verdict:'A popular myth. It is not visible unaided from orbit.',
+      tags:[["LIKELY FALSE","#E23B3B","Too narrow to resolve with the naked eye."],
+            ["ESTABLISHED","#3FA35B","Visible only with magnification, low orbit."]] },
+    { src:'"Humans only use 10% of their brain."', conf:6,
+      verdict:'A persistent myth. Nearly all of the brain is active.',
+      tags:[["LIKELY FALSE","#E23B3B","Imaging shows widespread activity."],
+            ["ESTABLISHED","#3FA35B","No large permanently idle region exists."]] }
+  ];
+  const g = id => document.getElementById(id);
+  let timers = [];
+  function run(c){
+    timers.forEach(clearTimeout); timers = [];
+    g("vsrc").textContent = c.src;
+    g("vverdict").textContent = "";
+    g("vclaims").innerHTML = "";
+    g("vfill").style.width = "0%";
+    // confidence count + bar
+    const col = c.conf>=70?"#3FA35B":c.conf>=40?"#E8912B":"#E23B3B";
+    timers.push(setTimeout(()=>{ g("vfill").style.width = c.conf+"%"; g("vfill").style.background = col; }, 60));
+    const t0 = performance.now(); let raf;
+    (function tick(now){ const p=Math.min((now-t0)/900,1); const v=Math.round(c.conf*(1-Math.pow(1-p,3)));
+      g("vconf").textContent = v+"/100"; g("vconf").style.color = col; if(p<1) raf=requestAnimationFrame(tick); })(performance.now());
+    timers.push(setTimeout(()=>{ g("vverdict").textContent = c.verdict; }, 420));
+    c.tags.forEach((t,i)=>timers.push(setTimeout(()=>{
+      const d=document.createElement("div"); d.className="aw-claim";
+      d.style.cssText="opacity:0;transform:translateY(8px);transition:.32s cubic-bezier(.16,.8,.24,1)";
+      d.innerHTML='<span class="tag" style="background:'+t[1]+'">'+t[0]+'</span><span>'+t[2]+'</span>';
+      g("vclaims").appendChild(d); requestAnimationFrame(()=>{ d.style.opacity=1; d.style.transform="none"; });
+    }, 720 + i*230)));
+  }
+  const chips = [...document.querySelectorAll(".claim-chip")];
+  let touched = false;
+  chips.forEach(b=>b.addEventListener("click", ()=>{ touched = true; chips.forEach(x=>x.classList.remove("on")); b.classList.add("on"); run(CLAIMS[+b.dataset.i]); }));
+  if(chips[0]){ chips[0].classList.add("on"); }
+  // auto-run the default once, when it scrolls in, unless the user already picked
+  const io = new IntersectionObserver((es)=>{ es.forEach(e=>{ if(e.isIntersecting){ if(!touched) run(CLAIMS[0]); io.disconnect(); } }); }, {threshold:.4});
+  io.observe(w);
+}
+
+/* ---------- cursor-tilt on app-shot cards ---------- */
+function tilts(){
+  if(matchMedia("(pointer:coarse)").matches) return;
+  document.querySelectorAll(".shot").forEach(card=>{
+    card.addEventListener("pointermove", e=>{ const r=card.getBoundingClientRect();
+      const x=(e.clientX-r.left)/r.width-.5, y=(e.clientY-r.top)/r.height-.5;
+      card.style.transform = `perspective(1000px) rotateX(${(-y*6).toFixed(2)}deg) rotateY(${(x*8).toFixed(2)}deg)`; });
+    card.addEventListener("pointerleave", ()=>{ card.style.transform=""; });
+  });
+}
+
 /* ---------- mobile nav toggle ---------- */
 function nav(){ const b=document.getElementById("burger"), l=document.querySelector(".nav-links"); if(!b) return;
   b.addEventListener("click",()=>{ l.style.display = l.style.display==="flex"?"none":"flex"; }); }
@@ -199,7 +262,9 @@ function globe(){
   if(!mount) return;
   const scene = new THREE.Scene();
   const cam = new THREE.PerspectiveCamera(45,1,0.1,100); cam.position.z=3.2;
-  const renderer = new THREE.WebGLRenderer({antialias:true,alpha:true});
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({antialias:true,alpha:true}); }
+  catch(e){ mount.style.display="none"; return; }
   renderer.setClearColor(0x000000,0); mount.appendChild(renderer.domElement);
 
   const wire = new THREE.Mesh(new THREE.SphereGeometry(1.25,26,26),
@@ -217,4 +282,7 @@ function globe(){
   let t=0; (function loop(){ t+=reduced?0:0.004; wire.rotation.y=t; dots.rotation.y=t; wire.rotation.x=dots.rotation.x=0.3; renderer.render(scene,cam); requestAnimationFrame(loop); })();
 }
 
-hero3d(); globe(); reveals(); heroScroll(); pinScrub(); counters(); chatbot(); nav(); accentSampler();
+// Isolate every feature: a failure in one (e.g. WebGL) must never break the others.
+for(const fn of [hero3d, globe, reveals, heroScroll, pinScrub, counters, chatbot, nav, accentSampler, verifyDemo, tilts]){
+  try { fn(); } catch(e){ console.warn("[site] init failed:", fn.name, e && e.message); }
+}

@@ -40,23 +40,26 @@
   <div class="scrollhint"><span>Scroll</span><span class="line"></span></div>
 </section>
 
-<!-- VERIFY -->
+<!-- VERIFY (interactive) -->
 <section class="stage">
-  <p class="tiny-eyebrow fade-up">Verify</p>
+  <p class="tiny-eyebrow fade-up">Verify · try it</p>
   <h2 class="mega sm fade-up d1">Catch the<br><span class="grad">hallucination</span>.</h2>
-  <p class="one-line fade-up d2">A skeptical critic scores it and cites honestly.</p>
+  <p class="one-line fade-up d2">Pick a claim. Watch it get checked.</p>
+  <div class="claim-chips fade-up d2" id="claimChips">
+    <button class="claim-chip" data-i="0">Honey never spoils</button>
+    <button class="claim-chip" data-i="1">Great Wall visible from space</button>
+    <button class="claim-chip" data-i="2">We use 10% of our brain</button>
+  </div>
   <div class="stage-visual fade-up d2">
-    <div class="appwidget shot tilt" style="max-width:440px">
-      <div class="aw-hd"><span class="aw-dot"></span><span class="aw-ttl">Verify</span><span class="aw-via">critic:openai/gpt-4o</span><span class="aw-x">✕</span></div>
-      <div class="aw-src">"Honey never spoils. 3,000-year-old tomb honey is still edible."</div>
+    <div class="appwidget shot" id="vwidget" style="max-width:460px;text-align:left">
+      <div class="aw-hd"><span class="aw-dot"></span><span class="aw-ttl">Verify</span><span class="aw-via">critic:gpt-4o</span><span class="aw-x">✕</span></div>
+      <div class="aw-src" id="vsrc">"Honey never spoils."</div>
       <div class="aw-body">
-        <div class="aw-cf"><span class="l">Confidence</span><span class="n">72/100</span></div>
-        <div class="aw-trk"><div class="aw-fill"></div></div>
-        <div class="aw-vd">Broadly true, but "never" is overstated.</div>
+        <div class="aw-cf"><span class="l">Confidence</span><span class="n" id="vconf">0/100</span></div>
+        <div class="aw-trk"><div class="aw-fill" id="vfill" style="width:0%"></div></div>
+        <div class="aw-vd" id="vverdict"></div>
         <div class="aw-sec">Claims</div>
-        <div class="aw-claim"><span class="tag" style="background:#3FA35B">ESTABLISHED</span><span>Honey resists spoilage.</span></div>
-        <div class="aw-claim"><span class="tag" style="background:#E8912B">UNCERTAIN</span><span>"Never." Can ferment.</span></div>
-        <div class="aw-claim"><span class="tag" style="background:#4C86C6">NEEDS LIVE CHECK</span><span>Tomb honey. Verify source.</span></div>
+        <div id="vclaims"></div>
       </div>
     </div>
   </div>
@@ -199,6 +202,14 @@
     <a class="btn btn-g" href="https://github.com/babybooghost/sideshift.ai/releases/download/v0.1.2/SideShift.AI-0.1.2-setup.exe">Windows</a>
   </div>
   <p class="mono fade-up d3" style="color:var(--dim);font-size:12px;margin-top:20px">v0.1.2 · bring your own key</p>
+  <details class="macfix fade-up d3">
+    <summary>Mac says "could not verify"? One-time unblock</summary>
+    <div class="macfix-body">
+      <p>This beta is not notarized yet, so macOS blocks it on first open. Unzip it into Applications, then run this once in Terminal:</p>
+      <code>xattr -dr com.apple.quarantine "/Applications/SideShift AI.app"</code>
+      <p>Then open it normally. On Windows, click <b>More info</b> then <b>Run anyway</b> on the SmartScreen prompt.</p>
+    </div>
+  </details>
 </section>
 
 </main>
