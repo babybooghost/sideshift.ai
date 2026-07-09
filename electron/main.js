@@ -31,11 +31,22 @@ function createOverlay() {
     // Overlay must float above normal windows without stealing focus from target app.
     focusable: true,
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      // Preload MUST be .cjs — Electron decides a preload's module system by
+      // file extension, not package.json "type", so an ESM ".js" fails to load.
+      preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false
     }
+  });
+
+  // Startup healthcheck: the contextBridge API must be present, or capture/
+  // streaming/keys are all silently dead.
+  overlay.webContents.on("did-finish-load", async () => {
+    try {
+      const t = await overlay.webContents.executeJavaScript("typeof window.sideshift");
+      console.log(`[sideshift] preload bridge: ${t}`);
+    } catch {}
   });
 
   overlay.setAlwaysOnTop(true, "screen-saver");

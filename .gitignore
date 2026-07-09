@@ -2,8 +2,12 @@ node_modules/
 dist/
 dist-fable/
 out/
+release/
 .fable/
 .claude/settings.local.json
+# electron-builder derives these from build/icon.png
+build/icon.icns
+build/icon.ico
 obj/
 bin/
 *.log

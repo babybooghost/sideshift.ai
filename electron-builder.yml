@@ -1,0 +1,58 @@
+appId: ai.sideshift.app
+productName: SideShift AI
+copyright: SideShift AI
+
+# Config lives here (not the package.json "build" key) to avoid confusion with
+# the existing scripts.build entry.
+directories:
+  output: release
+  buildResources: build
+
+# No native modules (react is bundled by Vite); skip the rebuild step.
+npmRebuild: false
+
+# App payload. Renderer is pre-bundled by Vite into dist/; the three ESM files
+# under electron/ are loaded directly by Electron's Node runtime. No runtime
+# node_modules are needed (react/react-dom are bundled into dist by Vite).
+files:
+  - electron/**/*
+  - dist/**/*
+  - package.json
+  - "!**/*.map"
+
+# Single 1024x1024 source; electron-builder derives .icns (mac) and .ico (win).
+icon: build/icon.png
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+  # Beta: ad-hoc signature ("-"), no hardened runtime, no notarization. Ad-hoc
+  # (not fully unsigned) avoids Gatekeeper "app is damaged" on Apple Silicon.
+  identity: "-"
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  notarize: false
+  # desktopCapturer needs a usage string surfaced to macOS.
+  extendInfo:
+    NSScreenCaptureUsageDescription: SideShift AI reads the region you highlight so it can answer questions about it.
+
+dmg:
+  title: SideShift AI
+  # Both mac arches ship; suffix each so testers don't grab the wrong one.
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: ${productName}-${version}-setup.${ext}

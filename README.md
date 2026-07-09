@@ -40,6 +40,33 @@ npm run dev
 
 Hotkeys: `⌘⇧Space` capture · `⌘⇧H` show/hide overlay · `Esc` cancel capture.
 
+## Packaging & distribution
+
+Installers are built with **electron-builder** (config in [electron-builder.yml](electron-builder.yml)). Targets: macOS `.dmg` (arm64 + x64), Windows `.exe` NSIS installer (x64). No Linux yet.
+
+Local builds:
+
+```bash
+npm run dist:mac    # -> release/SideShift AI-<ver>-arm64.dmg  (+ x64)
+npm run dist:win    # -> release/SideShift AI-<ver>-setup.exe   (needs a Windows host)
+npm run dist        # both (each target needs its native OS)
+```
+
+Windows installers can't be built on macOS, so releases go through CI. Push a tag and GitHub Actions ([release.yml](.github/workflows/release.yml)) builds both on native runners and attaches them to a GitHub Release:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+The app icon is generated from a single source with no image deps: `npm run icon` (→ `build/icon.png`), which electron-builder converts to `.icns`/`.ico`.
+
+### Beta testers — opening an unsigned build
+
+These betas are **unsigned** (no paid Apple/Windows cert yet), so the OS will warn:
+
+- **macOS:** first launch is blocked ("unidentified developer"). On macOS 15 Sequoia the right-click→Open shortcut is gone — open the app once, then go to **System Settings → Privacy & Security** and click **Open Anyway**. If it still reports the app is "damaged" (quarantine on a downloaded dmg), run `xattr -cr "/Applications/SideShift AI.app"`. Then grant **Screen Recording** under Privacy & Security → *Screen & System Audio Recording* — required for capture. Because ad-hoc signatures change on every build, you must **re-grant Screen Recording after each beta update**.
+- **Windows:** SmartScreen shows "Windows protected your PC" → **More info** → **Run anyway**.
+
 ## Notes / honest limits
 
 - The API version calls `api.anthropic.com` with the user's key — it does **not** post into the AI app you're looking at, so "Merge" keeps context inside SideShift rather than injecting it into that app's server-side thread.

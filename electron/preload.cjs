@@ -1,4 +1,7 @@
-import { contextBridge, ipcRenderer } from "electron";
+// CommonJS preload. Electron picks a preload's module system by FILE EXTENSION,
+// not package.json "type" — an ESM ".js" preload silently fails to load. ".cjs"
+// is unambiguously CommonJS and works with contextIsolation + sandbox alike.
+const { contextBridge, ipcRenderer } = require("electron");
 
 let streamSeq = 0;
 
