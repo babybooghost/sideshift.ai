@@ -6,7 +6,7 @@ const page = document.body.dataset.page || "";
 const link = (href, label, key) => `<a href="${href}"${key === page ? ' class="on"' : ""}>${label}</a>`;
 
 const nav = `<nav><div class="navin">
-  <a class="brand" href="index.html"><span class="m">${MARK}</span> SIDESHIFT <span class="chip">v0.1.1</span></a>
+  <a class="brand" href="index.html"><span class="m">${MARK}</span> SIDESHIFT <span class="chip">v0.1.2</span></a>
   <button class="burger" id="burger" aria-label="Menu">☰</button>
   <div class="nav-links">
     ${link("index.html#features", "Features", "features")}
