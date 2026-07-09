@@ -34,6 +34,76 @@ let private streamCmd req (id: int) : Cmd<Msg> =
             | _ -> ())
         |> ignore ]
 
+let private modeStr =
+    function
+    | Ask -> "ask"
+    | ELI5 -> "eli5"
+    | Verify -> "verify"
+    | Diff -> "diff"
+
+let private strMode =
+    function
+    | "eli5" -> ELI5
+    | "verify" -> Verify
+    | "diff" -> Diff
+    | _ -> Ask
+
+/// Serialize the restorable slice of the model to a plain JS object.
+let private serialize (m: Model) : obj =
+    box
+        {| nextId = m.NextId
+           topZ = m.TopZ
+           shared = m.SharedContext |> List.toArray
+           widgets =
+            m.Widgets
+            |> List.map (fun w ->
+                box
+                    {| id = w.Id
+                       mode = modeStr w.Mode
+                       title = w.Title
+                       img = w.Capture.ImageDataUrl
+                       cx = w.Capture.X
+                       cy = w.Capture.Y
+                       cw = w.Capture.W
+                       ch = w.Capture.H
+                       messages =
+                        w.Messages
+                        |> List.map (fun mm -> box {| role = mm.Role; text = mm.Text |})
+                        |> List.toArray
+                       input = w.Input
+                       posX = w.PosX
+                       posY = w.PosY
+                       width = w.Width
+                       height = w.Height
+                       z = w.Z
+                       minimized = w.Minimized
+                       color = w.Color
+                       via = w.Via |})
+            |> List.toArray |}
+
+let private parseWidget (o: obj) : Widget =
+    let msgs: obj [] = unbox o?messages
+    { Id = unbox o?id
+      Mode = strMode (unbox o?mode)
+      Title = unbox o?title
+      Capture = { ImageDataUrl = unbox o?img; X = unbox o?cx; Y = unbox o?cy; W = unbox o?cw; H = unbox o?ch }
+      Messages = msgs |> Array.map (fun m -> { Role = unbox m?role; Text = unbox m?text }) |> Array.toList
+      Input = unbox o?input
+      Streaming = false
+      StreamBuf = ""
+      Error = None
+      Via = unbox o?via
+      PosX = unbox o?posX
+      PosY = unbox o?posY
+      Width = unbox o?width
+      Height = unbox o?height
+      Z = unbox o?z
+      Minimized = unbox o?minimized
+      Color = unbox o?color }
+
+let private saveCmd (m: Model) : Cmd<Msg> =
+    effect (fun () -> Interop.saveState (serialize m) |> ignore)
+
 let init () : Model * Cmd<Msg> =
     { AnthropicKey = None
       OpenRouterKey = None
@@ -55,7 +125,8 @@ let init () : Model * Cmd<Msg> =
       SharedContext = [] },
     Cmd.batch
         [ Cmd.OfPromise.perform Interop.loadKey "anthropic" (fun r -> KeyLoaded("anthropic", keyOpt r))
-          Cmd.OfPromise.perform Interop.loadKey "openrouter" (fun r -> KeyLoaded("openrouter", keyOpt r)) ]
+          Cmd.OfPromise.perform Interop.loadKey "openrouter" (fun r -> KeyLoaded("openrouter", keyOpt r))
+          Cmd.OfPromise.perform Interop.loadState () StateLoaded ]
 
 let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
     match msg with
@@ -66,6 +137,18 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
         { model with AnthropicKey = k; ShowSettings = model.ShowSettings || Option.isNone k }, Cmd.none
     | KeyLoaded("openrouter", k) -> { model with OpenRouterKey = k }, Cmd.none
     | KeyLoaded(_, _) -> model, Cmd.none
+    | StateLoaded o ->
+        if isNull o then
+            model, Cmd.none
+        else
+            let ws: obj [] = unbox o?widgets
+            let sh: obj [] = unbox o?shared
+            { model with
+                Widgets = ws |> Array.map parseWidget |> Array.toList
+                NextId = max model.NextId (unbox o?nextId: int)
+                TopZ = max model.TopZ (unbox o?topZ: int)
+                SharedContext = sh |> Array.map (fun s -> (unbox s: string)) |> Array.toList },
+            Cmd.none
     | OpenSettings ->
         { model with
             ShowSettings = true
@@ -145,8 +228,10 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                   Color = palette.[id % palette.Length] }
             let model2 = { model with Widgets = w :: model.Widgets; NextId = id + 1; TopZ = z; Pending = None }
             match SideShift.Api.firstPrompt mode with
-            | Some p -> (mapWidget id (fun x -> { x with Input = p }) model2), Cmd.ofMsg (Send id)
-            | None -> model2, Cmd.none
+            | Some p ->
+                let model3 = mapWidget id (fun x -> { x with Input = p }) model2
+                model3, Cmd.batch [ Cmd.ofMsg (Send id); saveCmd model3 ]
+            | None -> model2, saveCmd model2
 
     // --- widget lifecycle ---
     | Focus id ->
@@ -165,11 +250,16 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
             (mapWidget id (fun w -> { w with Width = max 260.0 (x - w.PosX); Height = max 220.0 (y - w.PosY) }) model),
             Cmd.none
         | None, None -> model, Cmd.none
-    | PointerUp -> { model with Drag = None; Resize = None }, Cmd.none
-    | Minimize id -> (mapWidget id (fun w -> { w with Minimized = true }) model), Cmd.none
+    | PointerUp ->
+        let m2 = { model with Drag = None; Resize = None }
+        m2, (if Option.isSome model.Drag || Option.isSome model.Resize then saveCmd m2 else Cmd.none)
+    | Minimize id ->
+        let m2 = mapWidget id (fun w -> { w with Minimized = true }) model
+        m2, saveCmd m2
     | Restore id ->
         let z = model.TopZ + 1
-        { (mapWidget id (fun w -> { w with Minimized = false; Z = z }) model) with TopZ = z }, Cmd.none
+        let m2 = { (mapWidget id (fun w -> { w with Minimized = false; Z = z }) model) with TopZ = z }
+        m2, saveCmd m2
     | RequestClose id -> { model with Closing = Some id }, Cmd.none
     | CloseWith(id, policy) ->
         let shared =
@@ -179,10 +269,12 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                 match model.Widgets |> List.tryFind (fun w -> w.Id = id) with
                 | Some w when not (List.isEmpty w.Messages) -> model.SharedContext @ [ SideShift.Api.mergeSummary w ]
                 | _ -> model.SharedContext
-        { model with
-            Widgets = model.Widgets |> List.filter (fun w -> w.Id <> id)
-            Closing = None
-            SharedContext = shared }, Cmd.none
+        let m2 =
+            { model with
+                Widgets = model.Widgets |> List.filter (fun w -> w.Id <> id)
+                Closing = None
+                SharedContext = shared }
+        m2, saveCmd m2
     | Merged _ -> model, Cmd.none
 
     // --- chat ---
@@ -211,11 +303,13 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
         | _ -> model, Cmd.none
     | StreamDelta(id, t) -> (mapWidget id (fun w -> { w with StreamBuf = w.StreamBuf + t }) model), Cmd.none
     | StreamDone id ->
-        (mapWidget id
-            (fun w ->
-                { w with
-                    Messages = w.Messages @ [ { Role = "assistant"; Text = w.StreamBuf } ]
-                    StreamBuf = ""
-                    Streaming = false })
-            model), Cmd.none
+        let m2 =
+            mapWidget id
+                (fun w ->
+                    { w with
+                        Messages = w.Messages @ [ { Role = "assistant"; Text = w.StreamBuf } ]
+                        StreamBuf = ""
+                        Streaming = false })
+                model
+        m2, saveCmd m2
     | StreamError(id, m) -> (mapWidget id (fun w -> { w with Streaming = false; Error = Some m }) model), Cmd.none

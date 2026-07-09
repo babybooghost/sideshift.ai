@@ -23,6 +23,7 @@ Screen-analysis AI overlay. Highlight **any** text or code on your screen — in
 | **Merge or Discard** | Closing a widget lets you discard the tangent or merge a summary into shared context that later side-chats inherit. |
 | **Margin Minimap** | Minimized widgets dock as colored nodes on the right edge; click to reopen. |
 | **Quick-copy** | Copy button on code/diff replies. |
+| **Persistent workspace** | Open side-chats + merged context survive quit/restart (stored locally, encrypted keys separate). |
 
 ## Run
 

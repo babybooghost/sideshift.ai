@@ -12,6 +12,8 @@ let saveKey (name: string) (value: string) : JS.Promise<obj> = bridge?saveKey (n
 let loadKey (name: string) : JS.Promise<obj> = bridge?loadKey (name)
 let setIgnoreMouse (b: bool) : unit = bridge?setIgnoreMouse (b)
 let onToggleCapture (cb: unit -> unit) : unit = bridge?onToggleCapture (cb)
+let saveState (state: obj) : JS.Promise<obj> = bridge?saveState (state)
+let loadState () : JS.Promise<obj> = bridge?loadState ()
 
 /// streamChat(req, onEvent) -> unsubscribe fn. onEvent gets {type, text|message}.
 let streamChat (req: obj) (onEvent: obj -> unit) : (unit -> unit) =

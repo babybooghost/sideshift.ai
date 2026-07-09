@@ -40,6 +40,11 @@ function createOverlay() {
     }
   });
 
+  // Surface renderer warnings/errors (e.g. a bad restore) to the main log.
+  overlay.webContents.on("console-message", (_e, level, message) => {
+    if (level >= 2) console.log(`[renderer:${level}] ${message}`);
+  });
+
   // Startup healthcheck: the contextBridge API must be present, or capture/
   // streaming/keys are all silently dead.
   overlay.webContents.on("did-finish-load", async () => {
@@ -109,6 +114,21 @@ ipcMain.handle("load-key", (_e, name) => {
 ipcMain.handle("clear-key", (_e, name) => {
   try { fs.existsSync(KEY_FILE(name)) && fs.unlinkSync(KEY_FILE(name)); } catch {}
   return { ok: true };
+});
+
+// --- IPC: workspace persistence --------------------------------------------
+const STATE_FILE = () => path.join(app.getPath("userData"), "state.json");
+
+ipcMain.handle("save-state", (_e, state) => {
+  try { fs.writeFileSync(STATE_FILE(), JSON.stringify(state)); return { ok: true }; }
+  catch (e) { return { ok: false, reason: String(e) }; }
+});
+
+ipcMain.handle("load-state", () => {
+  try {
+    if (!fs.existsSync(STATE_FILE())) return null;
+    return JSON.parse(fs.readFileSync(STATE_FILE(), "utf8"));
+  } catch { return null; }
 });
 
 // --- IPC: chat streaming (provider-agnostic) -------------------------------

@@ -17,6 +17,10 @@ contextBridge.exposeInMainWorld("sideshift", {
   loadKey: (name) => ipcRenderer.invoke("load-key", name),
   clearKey: (name) => ipcRenderer.invoke("clear-key", name),
 
+  // Persist/restore the workspace (open widgets + merged context) across restarts.
+  saveState: (state) => ipcRenderer.invoke("save-state", state),
+  loadState: () => ipcRenderer.invoke("load-state"),
+
   // Global-hotkey events into the Elmish loop.
   onToggleCapture: (cb) => ipcRenderer.on("hotkey:toggle-capture", () => cb()),
 

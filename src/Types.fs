@@ -65,6 +65,7 @@ type Model =
 
 type Msg =
     | KeyLoaded of string * string option // name, value
+    | StateLoaded of obj                  // persisted workspace (or null)
     | OpenSettings
     | CloseSettings
     | AnthropicDraftChanged of string
