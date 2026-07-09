@@ -17,8 +17,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # dmgbuild can't render the Finder-window background headlessly on CI,
+          # so ship a zipped .app from CI; local `npm run dist:mac` still makes a .dmg.
           - os: macos-latest
-            builder: "--mac"
+            builder: "--mac zip"
           - os: windows-latest
             builder: "--win"
     runs-on: ${{ matrix.os }}
@@ -51,6 +53,7 @@ jobs:
           name: installers-${{ matrix.os }}
           path: |
             release/*.dmg
+            release/*.zip
             release/*.exe
             release/*.blockmap
           if-no-files-found: error
