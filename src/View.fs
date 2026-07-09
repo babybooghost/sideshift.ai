@@ -326,7 +326,8 @@ let private settingsModal (model: Model) dispatch =
                                 prop.onClick (fun _ -> dispatch SaveSettings)
                                 prop.text "Save"
                                 prop.style [ style.custom ("flex", "1"); style.padding 10; style.borderRadius 8; style.custom ("border", "none")
-                                             style.custom ("background", accent); style.color "#FFF"; style.cursor.pointer; style.fontWeight 600 ]
+                                             style.custom ("background", accent); style.color "#FFF"; style.cursor.pointer; style.fontWeight 600
+                                             style.custom ("boxShadow", "0 4px 18px color-mix(in srgb, var(--accent) 40%, transparent)") ]
                             ]
                             Html.button [
                                 prop.onClick (fun _ -> dispatch CloseSettings)
@@ -448,7 +449,7 @@ let private confBar (n: int) =
             ]
             Html.div [
                 prop.style [ style.height 6; style.borderRadius 3; style.custom ("background", track); style.overflow.hidden ]
-                prop.children [ Html.div [ prop.style [ style.height 6; style.custom ("width", sprintf "%d%%" n); style.custom ("background", confColor n) ] ] ]
+                prop.children [ Html.div [ prop.style [ style.height 6; style.custom ("width", sprintf "%d%%" n); style.custom ("background", confColor n); style.custom ("boxShadow", "0 0 10px " + confColor n) ] ] ]
             ]
         ]
     ]
@@ -620,6 +621,7 @@ let private widgetView (model: Model) (w: Widget) dispatch =
                         prop.onClick (fun _ -> dispatch (Send w.Id))
                         prop.style [ style.custom ("border", "none"); style.custom ("background", w.Color); style.color "#FFF"
                                      style.borderRadius 8; style.width 40; style.height 36; style.cursor.pointer
+                                     style.custom ("boxShadow", "0 3px 14px " + w.Color + "66")
                                      style.display.flex; style.alignItems.center; style.justifyContent.center ]
                         prop.children [ svgIco icoSend 16 ]
                     ]
