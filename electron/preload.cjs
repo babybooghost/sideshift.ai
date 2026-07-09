@@ -27,6 +27,14 @@ contextBridge.exposeInMainWorld("sideshift", {
   onOpenSettings: (cb) => ipcRenderer.on("menu:open-settings", () => cb()),
   openScreenPrivacy: () => ipcRenderer.invoke("open-screen-privacy"),
 
+  // Settings lives in its own native window; the overlay syncs prefs/keys live.
+  openSettingsWindow: (err) => ipcRenderer.send("open-settings-window", err || null),
+  closeSettingsWindow: () => ipcRenderer.send("close-settings-window"),
+  savePrefs: (prefs) => ipcRenderer.invoke("save-prefs", prefs),
+  onPrefsChanged: (cb) => ipcRenderer.on("prefs-changed", (_e, p) => cb(p)),
+  onKeysChanged: (cb) => ipcRenderer.on("keys-changed", () => cb()),
+  onSettingsError: (cb) => ipcRenderer.on("settings-error", (_e, m) => cb(m)),
+
   // Validate an API key against the provider (real network check). -> {ok, valid, status}
   validateKey: (provider, key) => ipcRenderer.invoke("validate-key", { provider, key }),
 

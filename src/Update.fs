@@ -171,17 +171,33 @@ let private parseWidget (o: obj) : Widget =
 let private saveCmd (m: Model) : Cmd<Msg> =
     effect (fun () -> Interop.saveState (serialize m) |> ignore)
 
+let private prefsObj (m: Model) : obj =
+    box
+        {| accent = m.AccentColor
+           opacity = surfaceStr m.Opacity
+           theme = themeStr m.Theme
+           webVerify = m.WebVerify
+           critic = m.CriticModel
+           googleEmail = Option.toObj m.GoogleEmail |}
+
+// The settings window persists preferences through a merge-only channel so it can
+// never overwrite the overlay's live widgets; the overlay saves the full state.
+let private persist (m: Model) : Cmd<Msg> =
+    if Interop.isSettingsWindow then effect (fun () -> Interop.savePrefs (prefsObj m) |> ignore)
+    else saveCmd m
+
 let init () : Model * Cmd<Msg> =
     { AnthropicKey = None
       OpenRouterKey = None
       DefaultModel = SideShift.Api.DEFAULT_ANTHROPIC_MODEL
       CriticModel = SideShift.Api.DEFAULT_CRITIC_MODEL
-      ShowSettings = false
+      // the dedicated settings window boots straight into the settings view
+      ShowSettings = Interop.isSettingsWindow
       AnthropicDraft = ""
       OpenRouterDraft = ""
       CriticDraft = SideShift.Api.DEFAULT_CRITIC_MODEL
       Validating = false
-      KeyError = None
+      KeyError = (let e = Interop.settingsErrParam in if e = "" then None else Some e)
       AccentColor = "#E4571E"
       Opacity = Translucent
       Theme = Dark
@@ -211,9 +227,36 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
 
     // --- settings ---
     | KeyLoaded("anthropic", k) ->
-        { model with AnthropicKey = k; ShowSettings = model.ShowSettings || Option.isNone k }, Cmd.none
-    | KeyLoaded("openrouter", k) -> { model with OpenRouterKey = k }, Cmd.none
+        if Interop.isSettingsWindow then
+            // settings window: show the stored key in the (masked) draft field
+            { model with AnthropicKey = k; AnthropicDraft = defaultArg k "" }, Cmd.none
+        elif Option.isNone k && not model.ShowSettings then
+            // overlay first run without a key: pop the native settings window once
+            { model with AnthropicKey = k; ShowSettings = true },
+            effect (fun () -> Interop.openSettingsWindow "")
+        else
+            { model with AnthropicKey = k }, Cmd.none
+    | KeyLoaded("openrouter", k) ->
+        if Interop.isSettingsWindow then { model with OpenRouterKey = k; OpenRouterDraft = defaultArg k "" }, Cmd.none
+        else { model with OpenRouterKey = k }, Cmd.none
     | KeyLoaded(_, _) -> model, Cmd.none
+    | KeysReload ->
+        model,
+        Cmd.batch
+            [ Cmd.OfPromise.perform Interop.loadKey "anthropic" (fun r -> KeyLoaded("anthropic", keyOpt r))
+              Cmd.OfPromise.perform Interop.loadKey "openrouter" (fun r -> KeyLoaded("openrouter", keyOpt r)) ]
+    | PrefsChanged o ->
+        let critic = if isNil o?critic then model.CriticModel else (unbox o?critic: string)
+        { model with
+            AccentColor = (if isNil o?accent then model.AccentColor else (unbox o?accent: string))
+            Opacity = (if isNil o?opacity then model.Opacity else strSurface (unbox o?opacity: string))
+            Theme = (if isNil o?theme then model.Theme else strTheme (unbox o?theme: string))
+            WebVerify = (if isNil o?webVerify then model.WebVerify else (unbox o?webVerify: bool))
+            CriticModel = critic
+            CriticDraft = critic
+            GoogleEmail = (if isNil o?googleEmail then None else Some(unbox o?googleEmail: string)) },
+        Cmd.none
+    | SettingsError e -> { model with KeyError = Some e; Validating = false }, Cmd.none
     | StateLoaded o ->
         if isNull o then
             model, Cmd.none
@@ -236,14 +279,16 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                 SharedContext = sh |> Array.map (fun s -> (unbox s: string)) |> Array.toList },
             Cmd.none
     | OpenSettings ->
-        { model with
-            ShowSettings = true
-            AnthropicDraft = defaultArg model.AnthropicKey ""
-            OpenRouterDraft = defaultArg model.OpenRouterKey ""
-            CriticDraft = model.CriticModel
-            Validating = false
-            KeyError = None }, effect (fun () -> Interop.setIgnoreMouse false)
-    | CloseSettings -> { model with ShowSettings = false; Validating = false; KeyError = None }, effect (fun () -> Interop.setIgnoreMouse true)
+        if Interop.isSettingsWindow then
+            model, Cmd.none
+        else
+            // settings is its own native window (traffic lights, real activation)
+            { model with ShowSettings = true }, effect (fun () -> Interop.openSettingsWindow "")
+    | CloseSettings ->
+        if Interop.isSettingsWindow then
+            model, effect Interop.closeSettingsWindow
+        else
+            { model with ShowSettings = false; Validating = false; KeyError = None }, Cmd.none
     | AnthropicDraftChanged s -> { model with AnthropicDraft = s }, Cmd.none
     | OpenRouterDraftChanged s -> { model with OpenRouterDraft = s }, Cmd.none
     | CriticDraftChanged s -> { model with CriticDraft = s }, Cmd.none
@@ -282,22 +327,26 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                   // (otherwise the old key resurrects on restart)
                   if ork <> "" then Cmd.OfPromise.perform (fun () -> Interop.saveKey "openrouter" ork) () (fun _ -> SettingsSaved)
                   elif Option.isSome model.OpenRouterKey then Cmd.OfPromise.perform (fun () -> Interop.clearKey "openrouter") () (fun _ -> SettingsSaved)
-                  // persist critic model (and the rest of the restorable state)
-                  saveCmd m2 ]
-            m2, Cmd.batch (effect (fun () -> Interop.setIgnoreMouse true) :: cmds)
+                  // persist critic model + prefs (merge-only channel in the settings window)
+                  persist m2 ]
+            if Interop.isSettingsWindow then
+                // saved from the native settings window: close it when done
+                m2, Cmd.batch (cmds @ [ effect Interop.closeSettingsWindow ])
+            else
+                m2, Cmd.batch cmds
     | SettingsSaved -> model, Cmd.none
     | SetAccent c ->
         let m2 = { model with AccentColor = c }
-        m2, saveCmd m2
+        m2, persist m2
     | SetOpacity o ->
         let m2 = { model with Opacity = o }
-        m2, saveCmd m2
+        m2, persist m2
     | SetTheme t ->
         let m2 = { model with Theme = t }
-        m2, saveCmd m2
+        m2, persist m2
     | SetWebVerify b ->
         let m2 = { model with WebVerify = b }
-        m2, saveCmd m2
+        m2, persist m2
     | DoGoogleSignIn ->
         { model with GoogleBusy = true; GoogleErr = None },
         Cmd.OfPromise.either
@@ -324,10 +373,10 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
             (fun ex -> GoogleSignedIn(None, Some ex.Message))
     | GoogleSignedIn(email, err) ->
         let m2 = { model with GoogleBusy = false; GoogleEmail = email; GoogleErr = err }
-        m2, (if Option.isSome email then saveCmd m2 else Cmd.none)
+        m2, (if Option.isSome email then persist m2 else Cmd.none)
     | GoogleSignOut ->
         let m2 = { model with GoogleEmail = None }
-        m2, Cmd.batch [ effect (fun () -> Interop.googleSignOut () |> ignore); saveCmd m2 ]
+        m2, Cmd.batch [ effect (fun () -> Interop.googleSignOut () |> ignore); persist m2 ]
     | OpenScreenPrivacy -> model, effect (fun () -> Interop.openScreenPrivacy ())
     | NudgeFocused(dx, dy) ->
         match model.Widgets |> List.filter (fun w -> not w.Minimized) with
@@ -352,9 +401,9 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
         { model with CaptureMode = true; Screenshot = Some(d, w, h, s) },
         effect (fun () -> Interop.setIgnoreMouse false)
     | CaptureFailed msg ->
-        // surface the reason (usually macOS Screen Recording permission) instead of a silent no-op
-        { model with CaptureMode = false; Screenshot = None; ShowSettings = true; KeyError = Some msg },
-        effect (fun () -> Interop.setIgnoreMouse false)
+        // surface the reason (usually macOS Screen Recording permission) in the settings window
+        { model with CaptureMode = false; Screenshot = None },
+        effect (fun () -> Interop.openSettingsWindow msg)
     | CaptureCancelled ->
         { model with CaptureMode = false; Screenshot = None }, effect (fun () -> Interop.setIgnoreMouse true)
     | RegionDrawn(x, y, w, h) ->

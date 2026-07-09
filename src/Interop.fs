@@ -18,6 +18,25 @@ let clearKey (name: string) : JS.Promise<obj> = bridge?clearKey (name)
 /// click-through over visible UI (or capture over empty screen).
 [<Emit("(window.__ssSetIgnore ? window.__ssSetIgnore($0) : window.sideshift.setIgnoreMouse($0))")>]
 let setIgnoreMouse (b: bool) : unit = jsNative
+/// True when this renderer runs inside the dedicated Settings window
+/// (real macOS window with traffic lights) rather than the overlay.
+[<Emit("new URLSearchParams(window.location.search).has('settings')")>]
+let isSettingsWindow : bool = jsNative
+
+/// Error message passed to the Settings window on open (e.g. capture failure), or "".
+[<Emit("(new URLSearchParams(window.location.search).get('err') || '')")>]
+let settingsErrParam : string = jsNative
+
+let openSettingsWindow (err: string) : unit = bridge?openSettingsWindow (err)
+let closeSettingsWindow () : unit = bridge?closeSettingsWindow ()
+let savePrefs (prefs: obj) : JS.Promise<obj> = bridge?savePrefs (prefs)
+let onPrefsChanged (cb: obj -> unit) : unit = bridge?onPrefsChanged (cb)
+let onKeysChanged (cb: unit -> unit) : unit = bridge?onKeysChanged (cb)
+let onSettingsError (cb: string -> unit) : unit = bridge?onSettingsError (cb)
+
+[<Emit("document.title = $0")>]
+let setTitle (t: string) : unit = jsNative
+
 let onToggleCapture (cb: unit -> unit) : unit = bridge?onToggleCapture (cb)
 let onNudge (cb: float -> float -> unit) : unit = bridge?onNudge (System.Func<float, float, unit>(cb))
 let onOpenSettings (cb: unit -> unit) : unit = bridge?onOpenSettings (cb)

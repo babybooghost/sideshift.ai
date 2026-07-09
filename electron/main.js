@@ -13,6 +13,41 @@ const KEY_FILE = (name) => path.join(app.getPath("userData"), `${String(name).re
 
 let overlay = null;
 let tray = null;
+let settingsWin = null;
+
+// Settings lives in a real, normal macOS window (traffic lights, Cmd+Tab, app
+// activation) — the overlay stays chrome-less and non-intrusive.
+function openSettingsWindow(errMsg) {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.show();
+    settingsWin.focus();
+    if (errMsg) settingsWin.webContents.send("settings-error", errMsg);
+    return;
+  }
+  settingsWin = new BrowserWindow({
+    width: 560,
+    height: 800,
+    minWidth: 500,
+    minHeight: 540,
+    title: "SideShift AI",
+    backgroundColor: "#0B0908",
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.cjs"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    }
+  });
+  settingsWin.once("ready-to-show", () => { settingsWin.show(); settingsWin.focus(); });
+  settingsWin.on("closed", () => { settingsWin = null; });
+  const query = errMsg ? { settings: "1", err: errMsg } : { settings: "1" };
+  if (isDev) {
+    settingsWin.loadURL("http://localhost:5173/?settings=1" + (errMsg ? "&err=" + encodeURIComponent(errMsg) : ""));
+  } else {
+    settingsWin.loadFile(path.join(__dirname, "..", "dist", "index.html"), { query });
+  }
+}
 
 function createOverlay() {
   const primary = screen.getPrimaryDisplay();
@@ -114,14 +149,17 @@ ipcMain.handle("capture-screen", async () => {
 });
 
 // --- IPC: secure API key storage (named) -----------------------------------
-ipcMain.handle("save-key", (_e, { name, value }) => {
+ipcMain.handle("save-key", (e, { name, value }) => {
   if (!safeStorage.isEncryptionAvailable()) return { ok: false, reason: "no-encryption" };
   try {
     fs.writeFileSync(KEY_FILE(name), safeStorage.encryptString(value));
+    // keys saved from the settings window must reach the overlay immediately
+    if (overlay && !overlay.isDestroyed() && e.sender !== overlay.webContents)
+      overlay.webContents.send("keys-changed");
     return { ok: true };
-  } catch (e) {
+  } catch (err) {
     // never throw across IPC (would reject unhandled in the renderer)
-    return { ok: false, reason: "write-failed", error: String(e?.message || e) };
+    return { ok: false, reason: "write-failed", error: String(err?.message || err) };
   }
 });
 
@@ -135,13 +173,31 @@ ipcMain.handle("load-key", (_e, name) => {
   }
 });
 
-ipcMain.handle("clear-key", (_e, name) => {
+ipcMain.handle("clear-key", (e, name) => {
   try { fs.existsSync(KEY_FILE(name)) && fs.unlinkSync(KEY_FILE(name)); } catch {}
+  if (overlay && !overlay.isDestroyed() && e.sender !== overlay.webContents)
+    overlay.webContents.send("keys-changed");
   return { ok: true };
 });
 
 // --- IPC: workspace persistence --------------------------------------------
 const STATE_FILE = () => path.join(app.getPath("userData"), "state.json");
+
+// Settings-window IPC: open/close, plus preference sync so the settings window
+// never clobbers the overlay's live widget state (it merges prefs only).
+ipcMain.on("open-settings-window", (_e, err) => openSettingsWindow(err || undefined));
+ipcMain.on("close-settings-window", () => { if (settingsWin && !settingsWin.isDestroyed()) settingsWin.close(); });
+
+ipcMain.handle("save-prefs", (_e, prefs) => {
+  try {
+    let cur = {};
+    try { cur = JSON.parse(fs.readFileSync(STATE_FILE(), "utf8")) || {}; } catch {}
+    const merged = { ...cur, ...prefs };
+    fs.writeFileSync(STATE_FILE(), JSON.stringify(merged));
+    if (overlay && !overlay.isDestroyed()) overlay.webContents.send("prefs-changed", prefs);
+    return { ok: true };
+  } catch (e) { return { ok: false, error: String(e?.message || e) }; }
+});
 
 ipcMain.handle("save-state", (_e, state) => {
   try { fs.writeFileSync(STATE_FILE(), JSON.stringify(state)); return { ok: true }; }
@@ -331,7 +387,7 @@ app.whenReady().then(() => {
   globalShortcut.register("CommandOrControl+Alt+Down", () => nudge(0, STEP));
 
   const showOverlay = () => { if (overlay) { overlay.show(); overlay.setAlwaysOnTop(true, "screen-saver"); } };
-  const openSettings = () => { showOverlay(); if (overlay) overlay.webContents.send("menu:open-settings"); };
+  const openSettings = () => openSettingsWindow();
   const capture = () => { showOverlay(); if (overlay) overlay.webContents.send("hotkey:toggle-capture"); };
 
   // Tray (menu bar / system tray) — the always-visible entry point so the app

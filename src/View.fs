@@ -128,33 +128,23 @@ let private field (label: string) (placeholder: string) (value: string) (onChang
     ]
 
 let private settingsModal (model: Model) dispatch =
+    // Rendered as a full page inside the dedicated native settings window (traffic
+    // lights close it), or nothing at all in the overlay (which only opens the window).
+    let inWindow = Interop.isSettingsWindow
     Html.div [
         prop.className "ss-interactive"
         prop.style [ style.position.fixedRelativeToWindow; style.custom ("inset", "0"); style.display.flex
-                     style.alignItems.center; style.justifyContent.center; style.custom ("zIndex", "5000000")
-                     // plain dim, no backdrop blur: a full-screen blur on a transparent
-                     // always-on-top window is a big GPU hit and makes the whole app laggy
-                     style.custom ("background", "rgba(14,10,6,0.78)") ]
+                     style.alignItems.flexStart; style.justifyContent.center; style.custom ("zIndex", "5000000")
+                     style.custom ("overflowY", "auto"); style.padding (18, 0)
+                     style.custom ("background", (if inWindow then "#0B0908" else "rgba(14,10,6,0.78)")) ]
         yield! hoverProps
-        // click outside the card = close (standard modal behavior)
-        prop.onClick (fun _ -> dispatch CloseSettings)
         prop.children [
             Html.div [
-                // never taller than the screen: scrolls inside, so Save/Cancel always reachable
-                prop.onClick (fun e -> e.stopPropagation ())
-                prop.style [ style.width 440; style.custom ("background", raised); style.borderRadius 14; style.padding 24
-                             style.custom ("maxHeight", "86vh"); style.custom ("overflowY", "auto"); style.position.relative
+                prop.style [ style.width 460; style.custom ("background", raised); style.borderRadius 14; style.padding 24
+                             style.position.relative; style.custom ("height", "fit-content")
                              style.color textPri; style.custom ("border", sprintf "1px solid %s" border)
                              style.custom ("boxShadow", shadow) ]
                 prop.children [
-                    Html.button [
-                        prop.text "✕"
-                        prop.title "Close (Esc)"
-                        prop.onClick (fun _ -> dispatch CloseSettings)
-                        prop.style [ style.position.absolute; style.top 12; style.right 14; style.custom ("border", "none")
-                                     style.custom ("background", "transparent"); style.color textMut; style.fontSize 15
-                                     style.cursor.pointer; style.padding (4, 6) ]
-                    ]
                     Html.div [
                         prop.style [ style.display.flex; style.alignItems.center; style.custom ("gap", "11px") ]
                         prop.children [
@@ -755,34 +745,38 @@ let private dock dispatch =
 
 // ---- root ------------------------------------------------------------------
 let view (model: Model) dispatch =
-    Html.div [
-        prop.style ([ style.custom ("--accent", model.AccentColor)
-                      style.custom ("--surface", surfaceVar model.Theme model.Opacity)
-                      style.custom ("--sblur", blurVar model.Opacity) ]
-                    @ (themeVars model.Theme |> List.map (fun (k, v) -> style.custom (k, v))))
-        prop.children [
-            match model.Drag, model.Resize with
-            | None, None -> Html.none
-            | _ ->
-                Html.div [
-                    prop.className "ss-interactive"
-                    prop.style [ style.position.fixedRelativeToWindow; style.custom ("inset", "0"); style.custom ("zIndex", "3000000") ]
-                    prop.onMouseMove (fun e -> dispatch (PointerMove(e.clientX, e.clientY)))
-                    prop.onMouseUp (fun _ -> dispatch PointerUp)
-                ]
+    let vars =
+        [ style.custom ("--accent", model.AccentColor)
+          style.custom ("--surface", surfaceVar model.Theme model.Opacity)
+          style.custom ("--sblur", blurVar model.Opacity) ]
+        @ (themeVars model.Theme |> List.map (fun (k, v) -> style.custom (k, v)))
+    if Interop.isSettingsWindow then
+        // dedicated native settings window: settings page only, nothing overlay-ish
+        Html.div [ prop.style vars; prop.children [ settingsModal model dispatch ] ]
+    else
+        Html.div [
+            prop.style vars
+            prop.children [
+                match model.Drag, model.Resize with
+                | None, None -> Html.none
+                | _ ->
+                    Html.div [
+                        prop.className "ss-interactive"
+                        prop.style [ style.position.fixedRelativeToWindow; style.custom ("inset", "0"); style.custom ("zIndex", "3000000") ]
+                        prop.onMouseMove (fun e -> dispatch (PointerMove(e.clientX, e.clientY)))
+                        prop.onMouseUp (fun _ -> dispatch PointerUp)
+                    ]
 
-            yield! (model.Widgets |> List.filter (fun w -> not w.Minimized) |> List.map (fun w -> widgetView model w dispatch))
+                yield! (model.Widgets |> List.filter (fun w -> not w.Minimized) |> List.map (fun w -> widgetView model w dispatch))
 
-            minimap model dispatch
+                minimap model dispatch
 
-            match model.Pending with
-            | Some(_, ax, ay) -> pendingBar model.PendingCode ax ay dispatch
-            | None -> Html.none
+                match model.Pending with
+                | Some(_, ax, ay) -> pendingBar model.PendingCode ax ay dispatch
+                | None -> Html.none
 
-            if model.CaptureMode then CaptureSelector {| dispatch = dispatch |} else Html.none
+                if model.CaptureMode then CaptureSelector {| dispatch = dispatch |} else Html.none
 
-            dock dispatch
-
-            if model.ShowSettings then settingsModal model dispatch else Html.none
+                dock dispatch
+            ]
         ]
-    ]

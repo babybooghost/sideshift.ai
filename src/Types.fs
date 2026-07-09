@@ -88,6 +88,9 @@ type Model =
 type Msg =
     | KeyLoaded of string * string option // name, value
     | StateLoaded of obj                  // persisted workspace (or null)
+    | PrefsChanged of obj                 // live prefs push from the settings window
+    | KeysReload                          // keys changed in the settings window; re-read
+    | SettingsError of string             // error pushed into the settings window
     | OpenSettings
     | CloseSettings
     | AnthropicDraftChanged of string
