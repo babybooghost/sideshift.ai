@@ -161,6 +161,96 @@ let private settingsModal (model: Model) dispatch =
                             ]
                         ]
                     ]
+                    // Web-grounded Verify toggle
+                    Html.div [
+                        prop.style [ style.display.flex; style.alignItems.center; style.justifyContent.spaceBetween; style.marginTop 16 ]
+                        prop.children [
+                            Html.div [
+                                prop.children [
+                                    Html.div [ prop.style [ style.fontSize 12.5; style.color textPri; style.fontWeight 600 ]; prop.text "Web-grounded Verify" ]
+                                    Html.div [ prop.style [ style.fontSize 11; style.color textMut; style.marginTop 2 ]
+                                               prop.text "Anthropic web search → real citations · ~$10/1k searches" ]
+                                ]
+                            ]
+                            Html.button [
+                                prop.onClick (fun _ -> dispatch (SetWebVerify(not model.WebVerify)))
+                                prop.style [ style.width 42; style.height 24; style.borderRadius 12; style.cursor.pointer; style.position.relative
+                                             style.custom ("flexShrink", "0"); style.custom ("border", sprintf "1px solid %s" border)
+                                             style.custom ("background", (if model.WebVerify then accent else "transparent")); style.custom ("transition", "background .15s") ]
+                                prop.children [
+                                    Html.span [ prop.style [ style.position.absolute; style.top 2; style.width 18; style.height 18; style.borderRadius 9
+                                                             style.custom ("background", (if model.WebVerify then "#FFF" else textMut))
+                                                             style.custom ("left", (if model.WebVerify then "21px" else "3px")); style.custom ("transition", "left .15s") ] ]
+                                ]
+                            ]
+                        ]
+                    ]
+                    // Account (Google Sign-In)
+                    Html.div [
+                        prop.style [ style.marginTop 18; style.paddingTop 16; style.custom ("borderTop", sprintf "1px solid %s" borderSoft) ]
+                        prop.children [
+                            Html.label [ prop.style [ style.fontSize 11; style.color textMut; style.custom ("letterSpacing", "0.04em"); style.custom ("textTransform", "uppercase") ]
+                                         prop.text "Account" ]
+                            (match model.GoogleEmail with
+                             | Some email ->
+                                 Html.div [
+                                     prop.style [ style.display.flex; style.alignItems.center; style.justifyContent.spaceBetween; style.marginTop 9 ]
+                                     prop.children [
+                                         Html.span [ prop.style [ style.fontSize 13; style.color textPri ]; prop.text ("Signed in · " + email) ]
+                                         Html.button [
+                                             prop.text "Sign out"
+                                             prop.onClick (fun _ -> dispatch GoogleSignOut)
+                                             prop.style [ style.padding (7, 12); style.borderRadius 8; style.cursor.pointer; style.fontSize 12
+                                                          style.custom ("border", sprintf "1px solid %s" border); style.custom ("background", "transparent"); style.color textSec ]
+                                         ]
+                                     ]
+                                 ]
+                             | None ->
+                                 Html.div [
+                                     prop.children [
+                                         Html.input [
+                                             prop.type' "text"; prop.placeholder "Google OAuth Client ID"
+                                             prop.value model.GoogleIdDraft
+                                             prop.onChange (fun (v: string) -> dispatch (GoogleIdDraftChanged v))
+                                             prop.style [ style.width (length.percent 100); style.padding 9; style.borderRadius 8; style.marginTop 8
+                                                          style.custom ("border", sprintf "1px solid %s" border); style.custom ("background", inputBg)
+                                                          style.color textPri; style.boxSizing.borderBox; style.fontSize 12.5; style.custom ("fontFamily", mono) ]
+                                         ]
+                                         Html.input [
+                                             prop.type' "password"; prop.placeholder "Client secret"
+                                             prop.value model.GoogleSecretDraft
+                                             prop.onChange (fun (v: string) -> dispatch (GoogleSecretDraftChanged v))
+                                             prop.style [ style.width (length.percent 100); style.padding 9; style.borderRadius 8; style.marginTop 7
+                                                          style.custom ("border", sprintf "1px solid %s" border); style.custom ("background", inputBg)
+                                                          style.color textPri; style.boxSizing.borderBox; style.fontSize 12.5; style.custom ("fontFamily", mono) ]
+                                         ]
+                                         Html.div [
+                                             prop.style [ style.display.flex; style.custom ("gap", "8px"); style.marginTop 9 ]
+                                             prop.children [
+                                                 Html.button [
+                                                     prop.text "Save keys"
+                                                     prop.onClick (fun _ -> dispatch SaveGoogleKeys)
+                                                     prop.style [ style.padding (8, 12); style.borderRadius 8; style.cursor.pointer; style.fontSize 12
+                                                                  style.custom ("border", sprintf "1px solid %s" border); style.custom ("background", "transparent"); style.color textSec ]
+                                                 ]
+                                                 Html.button [
+                                                     prop.text (if model.GoogleBusy then "Opening browser…" else "Sign in with Google")
+                                                     prop.disabled model.GoogleBusy
+                                                     prop.onClick (fun _ -> dispatch DoGoogleSignIn)
+                                                     prop.style [ style.custom ("flex", "1"); style.padding (8, 12); style.borderRadius 8; style.cursor.pointer; style.fontSize 12; style.fontWeight 600
+                                                                  style.custom ("border", "none"); style.custom ("background", accent); style.color "#FFF" ]
+                                                 ]
+                                             ]
+                                         ]
+                                     ]
+                                 ])
+                            (match model.GoogleErr with
+                             | Some e -> Html.div [ prop.style [ style.fontSize 12; style.color "#F0865A"; style.marginTop 8 ]; prop.text e ]
+                             | None -> Html.none)
+                            Html.div [ prop.style [ style.fontSize 11; style.color textMut; style.marginTop 8; style.lineHeight 1.5 ]
+                                       prop.text "Identity only for now — accounts/sync arrive with the managed backend. Needs a 'Desktop app' OAuth client from Google Cloud Console." ]
+                        ]
+                    ]
                     // Appearance: accent + surface opacity
                     Html.div [
                         prop.style [ style.marginTop 18 ]

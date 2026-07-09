@@ -26,6 +26,10 @@ contextBridge.exposeInMainWorld("sideshift", {
   onNudge: (cb) => ipcRenderer.on("hotkey:nudge", (_e, dx, dy) => cb(dx, dy)),
   openScreenPrivacy: () => ipcRenderer.invoke("open-screen-privacy"),
 
+  // Google Sign-In (PKCE loopback flow runs in main).
+  googleSignIn: (clientId, clientSecret) => ipcRenderer.invoke("google-signin", { clientId, clientSecret }),
+  googleSignOut: () => ipcRenderer.invoke("google-signout"),
+
   // Provider-agnostic streaming. `req` = {provider, apiKey, model, system,
   // history:[{role,text}], userText, imageDataUrl, maxTokens}.
   // Returns an unsubscribe fn; onEvent gets {type, text|message}.

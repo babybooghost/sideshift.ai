@@ -2,6 +2,8 @@ import { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, screen, s
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
+import crypto from "node:crypto";
+import http from "node:http";
 import { streamChat } from "./providers.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -136,6 +138,81 @@ ipcMain.handle("open-screen-privacy", () => {
   if (process.platform === "darwin") {
     shell.openExternal("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture");
   }
+  return { ok: true };
+});
+
+// --- Google Sign-In (OAuth 2.0 Authorization Code + PKCE, RFC 8252) ---------
+// Public "Desktop app" client: system browser + loopback redirect + PKCE. The
+// client_secret is a non-secret app identifier (Google's token endpoint still
+// wants it for Desktop clients); PKCE is what actually secures the flow.
+const GOOG_FILE = () => path.join(app.getPath("userData"), "google.refresh.enc");
+const b64url = (buf) => buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+async function googleSignIn(clientId, clientSecret) {
+  const verifier = b64url(crypto.randomBytes(48));
+  const challenge = b64url(crypto.createHash("sha256").update(verifier).digest());
+  const state = b64url(crypto.randomBytes(16));
+
+  const { code, redirect } = await new Promise((resolve, reject) => {
+    let redirect = null;
+    let server;
+    const timer = setTimeout(() => { try { server.close(); } catch {} reject(new Error("Sign-in timed out")); }, 180000);
+    server = http.createServer((req, res) => {
+      const u = new URL(req.url, redirect);
+      if (u.pathname !== "/callback") { res.writeHead(404); res.end(); return; }
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end("<html><body style='font-family:-apple-system,sans-serif;background:#16120D;color:#F1EADD;padding:56px'><h2>SideShift AI</h2><p>Signed in — you can close this tab.</p></body></html>");
+      clearTimeout(timer);
+      server.close();
+      const gotState = u.searchParams.get("state");
+      const gotCode = u.searchParams.get("code");
+      if (gotState !== state || !gotCode) reject(new Error("OAuth state/code mismatch"));
+      else resolve({ code: gotCode, redirect });
+    });
+    server.on("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      redirect = `http://127.0.0.1:${server.address().port}/callback`;
+      const auth = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+      auth.searchParams.set("client_id", clientId);
+      auth.searchParams.set("redirect_uri", redirect);
+      auth.searchParams.set("response_type", "code");
+      auth.searchParams.set("scope", "openid email profile");
+      auth.searchParams.set("code_challenge", challenge);
+      auth.searchParams.set("code_challenge_method", "S256");
+      auth.searchParams.set("state", state);
+      auth.searchParams.set("access_type", "offline");
+      shell.openExternal(auth.toString());
+    });
+  });
+
+  const tokRes = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code, client_id: clientId, client_secret: clientSecret, code_verifier: verifier,
+      grant_type: "authorization_code", redirect_uri: redirect
+    })
+  });
+  const tok = await tokRes.json();
+  if (!tokRes.ok) throw new Error("Token exchange failed: " + (tok.error_description || tok.error || tokRes.status));
+
+  const uiRes = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+    headers: { authorization: `Bearer ${tok.access_token}` }
+  });
+  const profile = await uiRes.json();
+  if (tok.refresh_token) {
+    try { fs.writeFileSync(GOOG_FILE(), safeStorage.encryptString(tok.refresh_token)); } catch {}
+  }
+  return { email: profile.email, name: profile.name, picture: profile.picture };
+}
+
+ipcMain.handle("google-signin", async (_e, { clientId, clientSecret }) => {
+  try { return { ok: true, profile: await googleSignIn(clientId, clientSecret) }; }
+  catch (e) { return { ok: false, error: String(e?.message || e) }; }
+});
+
+ipcMain.handle("google-signout", () => {
+  try { fs.existsSync(GOOG_FILE()) && fs.unlinkSync(GOOG_FILE()); } catch {}
   return { ok: true };
 });
 

@@ -65,6 +65,15 @@ type Model =
       AccentColor: string
       Opacity: Surface
       Theme: Theme
+      WebVerify: bool
+      // Google account (identity-only until a backend exists)
+      GoogleEmail: string option
+      GoogleId: string option
+      GoogleSecret: string option
+      GoogleIdDraft: string
+      GoogleSecretDraft: string
+      GoogleBusy: bool
+      GoogleErr: string option
       // workspace
       Widgets: Widget list
       NextId: int
@@ -91,6 +100,13 @@ type Msg =
     | SetAccent of string
     | SetOpacity of Surface
     | SetTheme of Theme
+    | SetWebVerify of bool
+    | GoogleIdDraftChanged of string
+    | GoogleSecretDraftChanged of string
+    | SaveGoogleKeys
+    | DoGoogleSignIn
+    | GoogleSignedIn of string option * string option
+    | GoogleSignOut
     | OpenScreenPrivacy
     | NudgeFocused of float * float
     // capture flow

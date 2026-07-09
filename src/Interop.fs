@@ -14,6 +14,8 @@ let setIgnoreMouse (b: bool) : unit = bridge?setIgnoreMouse (b)
 let onToggleCapture (cb: unit -> unit) : unit = bridge?onToggleCapture (cb)
 let onNudge (cb: float -> float -> unit) : unit = bridge?onNudge (System.Func<float, float, unit>(cb))
 let openScreenPrivacy () : unit = bridge?openScreenPrivacy ()
+let googleSignIn (clientId: string) (clientSecret: string) : JS.Promise<obj> = bridge?googleSignIn (clientId, clientSecret)
+let googleSignOut () : JS.Promise<obj> = bridge?googleSignOut ()
 let saveState (state: obj) : JS.Promise<obj> = bridge?saveState (state)
 let loadState () : JS.Promise<obj> = bridge?loadState ()
 

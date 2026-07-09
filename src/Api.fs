@@ -59,6 +59,37 @@ OTHER RULES:
 - If the region is code, an opinion, or a prediction, say so in the Verdict and rate only the checkable parts.
 - Keep the whole reply under ~200 words. It renders in a small overlay."""
 
+// Web-grounded Verify: the critic HAS a live web_search tool, so it can cite real
+// pages. Same output structure as cited Verify (so the widget renders it), but
+// citations are now the real URLs search returned — still never invented.
+let private verifyWebBase =
+    """You are an independent, skeptical fact-checker with a LIVE web_search tool. The attached image shows a claim the user highlighted on their screen. You did NOT write it.
+
+Search the web to verify the claim against current, authoritative sources before answering. Then cite the REAL pages your search returned — their actual titles and URLs. You may include real URLs because they came from search, not memory.
+
+STILL NEVER FABRICATE: cite only pages your search actually returned. Do not invent a URL, a study, a statistic, or a quote. If a claim names a source, treat it as UNVERIFIED until search confirms it. If search returns nothing relevant, say so and lower confidence — do not fill the gap from memory.
+
+OUTPUT — reply in exactly this structure, nothing before or after:
+
+Confidence: N/100
+Verdict: <one plain sentence: is the highlighted claim trustworthy as written?>
+
+Claims:
+- [ESTABLISHED|UNCERTAIN|LIKELY FALSE|NEEDS LIVE CHECK] <sub-claim in <=12 words> — <one-line reason>
+(one bullet per distinct factual sub-claim; [OPINION] for non-checkable content)
+
+From memory:
+- <what you were confident of before searching; keep it honest. If nothing: "Nothing I can cite confidently.">
+
+Check live:
+- <what the search settled, citing the real source found (title — url). If search was thin, say so.>
+
+Watch out:
+- <optional, max 2 bullets: missing nuance, misleading framing, or the most likely hallucination>
+
+Confidence rubric: 90-100 corroborated by strong sources; 70-89 mostly supported; 40-69 mixed/thin evidence; 15-39 contradicted by a sub-claim; 0-14 refuted. If search could not confirm the crux, cap at 55 and say so in the Verdict.
+Keep the whole reply under ~220 words. It renders in a small overlay."""
+
 let systemFor mode (shared: string list) =
     let baseSys =
         match mode with
@@ -79,17 +110,28 @@ let firstPrompt mode =
     | Verify -> Some "Fact-check the highlighted claim and give a confidence score."
     | Diff -> Some "Review the highlighted code and suggest the fix as a diff."
 
-/// Pick backend for a widget: Verify routes to the OpenRouter cross-model critic
-/// when a key is present; everything else uses Anthropic-direct.
-/// Returns (provider, apiKey, modelId, viaLabel).
-let routeFor (m: Model) (mode: WidgetMode) : (string * string * string * string) option =
-    match mode, m.OpenRouterKey, m.AnthropicKey with
-    | Verify, Some ork, _ -> Some("openrouter", ork, m.CriticModel, "critic:" + m.CriticModel)
-    | _, _, Some ak -> Some("anthropic", ak, m.DefaultModel, m.DefaultModel)
-    | _ -> None
+let verifyWebSystem (shared: string list) =
+    if List.isEmpty shared then verifyWebBase
+    else verifyWebBase + "\n\nEarlier side-notes the user carried over:\n- " + String.concat "\n- " shared
+
+/// Pick backend for a widget. Verify: web-grounded (Anthropic + web_search) when
+/// enabled and an Anthropic key exists; else the OpenRouter cross-model critic;
+/// else Anthropic-direct. Returns (provider, apiKey, modelId, viaLabel, webGrounded).
+let routeFor (m: Model) (mode: WidgetMode) : (string * string * string * string * bool) option =
+    match mode with
+    | Verify ->
+        match m.WebVerify, m.AnthropicKey, m.OpenRouterKey with
+        | true, Some ak, _ -> Some("anthropic", ak, m.DefaultModel, "web·" + m.DefaultModel, true)
+        | _, _, Some ork -> Some("openrouter", ork, m.CriticModel, "critic:" + m.CriticModel, false)
+        | _, Some ak, _ -> Some("anthropic", ak, m.DefaultModel, m.DefaultModel, false)
+        | _ -> None
+    | _ ->
+        match m.AnthropicKey with
+        | Some ak -> Some("anthropic", ak, m.DefaultModel, m.DefaultModel, false)
+        | None -> None
 
 /// Neutral request the Electron provider layer shapes per-provider.
-let buildReq provider apiKey (modelId: string) system (w: Widget) (userText: string) : obj =
+let buildReq provider apiKey (modelId: string) system (webGrounded: bool) (w: Widget) (userText: string) : obj =
     let history =
         w.Messages
         |> List.map (fun mm -> box {| role = mm.Role; text = mm.Text |})
@@ -99,7 +141,8 @@ let buildReq provider apiKey (modelId: string) system (w: Widget) (userText: str
            apiKey = apiKey
            model = modelId
            system = system
-           maxTokens = 1500
+           webGrounded = webGrounded
+           maxTokens = (if webGrounded then 2200 else 1500)
            history = history
            userText = userText
            imageDataUrl = w.Capture.ImageDataUrl |}

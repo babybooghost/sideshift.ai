@@ -94,6 +94,7 @@ let private serialize (m: Model) : obj =
            accent = m.AccentColor
            opacity = surfaceStr m.Opacity
            theme = themeStr m.Theme
+           webVerify = m.WebVerify
            shared = m.SharedContext |> List.toArray
            widgets =
             m.Widgets
@@ -157,6 +158,14 @@ let init () : Model * Cmd<Msg> =
       AccentColor = "#E4571E"
       Opacity = Translucent
       Theme = Dark
+      WebVerify = false
+      GoogleEmail = None
+      GoogleId = None
+      GoogleSecret = None
+      GoogleIdDraft = ""
+      GoogleSecretDraft = ""
+      GoogleBusy = false
+      GoogleErr = None
       Widgets = []
       NextId = 1
       TopZ = 10
@@ -171,6 +180,8 @@ let init () : Model * Cmd<Msg> =
     Cmd.batch
         [ Cmd.OfPromise.perform Interop.loadKey "anthropic" (fun r -> KeyLoaded("anthropic", keyOpt r))
           Cmd.OfPromise.perform Interop.loadKey "openrouter" (fun r -> KeyLoaded("openrouter", keyOpt r))
+          Cmd.OfPromise.perform Interop.loadKey "google-id" (fun r -> KeyLoaded("google-id", keyOpt r))
+          Cmd.OfPromise.perform Interop.loadKey "google-secret" (fun r -> KeyLoaded("google-secret", keyOpt r))
           Cmd.OfPromise.perform Interop.loadState () StateLoaded ]
 
 let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
@@ -181,6 +192,8 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
     | KeyLoaded("anthropic", k) ->
         { model with AnthropicKey = k; ShowSettings = model.ShowSettings || Option.isNone k }, Cmd.none
     | KeyLoaded("openrouter", k) -> { model with OpenRouterKey = k }, Cmd.none
+    | KeyLoaded("google-id", k) -> { model with GoogleId = k; GoogleIdDraft = defaultArg k "" }, Cmd.none
+    | KeyLoaded("google-secret", k) -> { model with GoogleSecret = k; GoogleSecretDraft = defaultArg k "" }, Cmd.none
     | KeyLoaded(_, _) -> model, Cmd.none
     | StateLoaded o ->
         if isNull o then
@@ -195,6 +208,7 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                 AccentColor = (if isNil o?accent then model.AccentColor else (unbox o?accent: string))
                 Opacity = (if isNil o?opacity then model.Opacity else strSurface (unbox o?opacity: string))
                 Theme = (if isNil o?theme then model.Theme else strTheme (unbox o?theme: string))
+                WebVerify = (if isNil o?webVerify then model.WebVerify else (unbox o?webVerify: bool))
                 SharedContext = sh |> Array.map (fun s -> (unbox s: string)) |> Array.toList },
             Cmd.none
     | OpenSettings ->
@@ -230,6 +244,37 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
     | SetTheme t ->
         let m2 = { model with Theme = t }
         m2, saveCmd m2
+    | SetWebVerify b ->
+        let m2 = { model with WebVerify = b }
+        m2, saveCmd m2
+    | GoogleIdDraftChanged s -> { model with GoogleIdDraft = s }, Cmd.none
+    | GoogleSecretDraftChanged s -> { model with GoogleSecretDraft = s }, Cmd.none
+    | SaveGoogleKeys ->
+        let id = model.GoogleIdDraft.Trim()
+        let sec = model.GoogleSecretDraft.Trim()
+        let cmds =
+            [ if id <> "" then Cmd.OfPromise.perform (fun () -> Interop.saveKey "google-id" id) () (fun _ -> SettingsSaved)
+              if sec <> "" then Cmd.OfPromise.perform (fun () -> Interop.saveKey "google-secret" sec) () (fun _ -> SettingsSaved) ]
+        { model with
+            GoogleId = (if id = "" then model.GoogleId else Some id)
+            GoogleSecret = (if sec = "" then model.GoogleSecret else Some sec) }, Cmd.batch cmds
+    | DoGoogleSignIn ->
+        match model.GoogleId, model.GoogleSecret with
+        | Some id, Some sec ->
+            { model with GoogleBusy = true; GoogleErr = None },
+            Cmd.OfPromise.either
+                (fun () -> Interop.googleSignIn id sec) ()
+                (fun r ->
+                    if unbox r?ok then
+                        let p = r?profile
+                        let email = if isNil p then None else (let e = p?email in if isNil e then None else Some(string e))
+                        GoogleSignedIn(email, None)
+                    else
+                        GoogleSignedIn(None, Some(string r?error)))
+                (fun ex -> GoogleSignedIn(None, Some ex.Message))
+        | _ -> { model with GoogleErr = Some "Enter your Google OAuth Client ID + secret first, then Save." }, Cmd.none
+    | GoogleSignedIn(email, err) -> { model with GoogleBusy = false; GoogleEmail = email; GoogleErr = err }, Cmd.none
+    | GoogleSignOut -> { model with GoogleEmail = None }, effect (fun () -> Interop.googleSignOut () |> ignore)
     | OpenScreenPrivacy -> model, effect (fun () -> Interop.openScreenPrivacy ())
     | NudgeFocused(dx, dy) ->
         match model.Widgets |> List.filter (fun w -> not w.Minimized) with
@@ -355,10 +400,12 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
         match model.Widgets |> List.tryFind (fun w -> w.Id = id) with
         | Some w when w.Input.Trim() <> "" ->
             match SideShift.Api.routeFor model w.Mode with
-            | Some(provider, apiKey, modelId, via) ->
+            | Some(provider, apiKey, modelId, via, webGrounded) ->
                 let text = w.Input.Trim()
-                let system = SideShift.Api.systemFor w.Mode model.SharedContext
-                let req = SideShift.Api.buildReq provider apiKey modelId system w text
+                let system =
+                    if w.Mode = Verify && webGrounded then SideShift.Api.verifyWebSystem model.SharedContext
+                    else SideShift.Api.systemFor w.Mode model.SharedContext
+                let req = SideShift.Api.buildReq provider apiKey modelId system webGrounded w text
                 let model2 =
                     mapWidget id
                         (fun x ->
