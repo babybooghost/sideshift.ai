@@ -100,8 +100,8 @@ function heroScroll(){
   if(!el || !hero) return;
   const on = ()=>{
     const p = Math.min(Math.max(window.scrollY / hero.offsetHeight, 0), 1);
-    el.style.transform = `scale(${1 + p*0.6}) translateY(${p*30}px)`;
-    el.style.opacity = String(1 - p*0.9);
+    el.style.transform = `translate(${p*110}px, ${p*24}px) scale(${1 + p*0.5})`;
+    el.style.opacity = String(1 - p*0.85);
   };
   on(); window.addEventListener("scroll", on, {passive:true});
 }
