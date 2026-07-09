@@ -1,19 +1,31 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
+    <linearGradient id="badge" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#241C13"/><stop offset="1" stop-color="#150F09"/>
+    </linearGradient>
     <linearGradient id="g" x1="330" y1="280" x2="690" y2="760" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#F8C64C"/><stop offset="1" stop-color="#E68A26"/>
     </linearGradient>
     <linearGradient id="a" x1="220" y1="740" x2="860" y2="230" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#D8481A"/><stop offset="1" stop-color="#F5732E"/>
     </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C79233"/><stop offset="1" stop-color="#7A4E17"/>
+    </linearGradient>
   </defs>
-  <!-- arrow shaft behind -->
-  <path d="M 220 726 C 350 706 384 566 478 544 C 574 522 560 414 668 392 C 730 379 792 340 842 274"
-        fill="none" stroke="url(#a)" stroke-width="66" stroke-linecap="round"/>
-  <!-- bold confident S -->
-  <path d="M 712 372 C 700 292 590 276 508 312 C 404 352 402 452 512 500 C 624 548 654 648 566 710 C 480 764 356 744 314 668"
-        fill="none" stroke="url(#g)" stroke-width="122" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- arrow tip in front + head -->
-  <path d="M 654 400 C 732 378 794 338 842 274" fill="none" stroke="url(#a)" stroke-width="66" stroke-linecap="round"/>
-  <path d="M 884 232 L 788 252 L 836 336 Z" fill="#F5732E"/>
+
+  <!-- contained badge with defined border -->
+  <rect x="70" y="70" width="884" height="884" rx="212" ry="212" fill="url(#badge)"/>
+  <rect x="70" y="70" width="884" height="884" rx="212" ry="212" fill="none" stroke="url(#ring)" stroke-width="14"/>
+  <rect x="94" y="94" width="836" height="836" rx="190" ry="190" fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="2"/>
+
+  <!-- mark, scaled to sit inside the badge with margin -->
+  <g transform="translate(512 524) scale(0.66) translate(-512 -512)">
+    <path d="M 220 726 C 350 706 384 566 478 544 C 574 522 560 414 668 392 C 730 379 792 340 842 274"
+          fill="none" stroke="url(#a)" stroke-width="66" stroke-linecap="round"/>
+    <path d="M 712 372 C 700 292 590 276 508 312 C 404 352 402 452 512 500 C 624 548 654 648 566 710 C 480 764 356 744 314 668"
+          fill="none" stroke="url(#g)" stroke-width="122" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 654 400 C 732 378 794 338 842 274" fill="none" stroke="url(#a)" stroke-width="66" stroke-linecap="round"/>
+    <path d="M 884 232 L 788 252 L 836 336 Z" fill="#F5732E"/>
+  </g>
 </svg>
