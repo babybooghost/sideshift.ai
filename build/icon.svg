@@ -1,34 +1,19 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="sGold" x1="320" y1="300" x2="700" y2="740" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#F8C64C"/>
-      <stop offset="1" stop-color="#E68A26"/>
+    <linearGradient id="g" x1="330" y1="280" x2="690" y2="760" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F8C64C"/><stop offset="1" stop-color="#E68A26"/>
     </linearGradient>
-    <linearGradient id="arr" x1="235" y1="720" x2="850" y2="255" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#D8481A"/>
-      <stop offset="1" stop-color="#F26B2A"/>
+    <linearGradient id="a" x1="220" y1="740" x2="860" y2="230" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D8481A"/><stop offset="1" stop-color="#F5732E"/>
     </linearGradient>
   </defs>
-
-  <!-- arrow shaft BEHIND the S -->
-  <path d="M 235 712
-           C 360 694 388 566 476 546
-           C 566 526 560 424 662 402
-           C 724 388 780 348 828 286"
-        fill="none" stroke="url(#arr)" stroke-width="60" stroke-linecap="round"/>
-
-  <!-- brushstroke S (gold) — the colored subject, transparent bg -->
-  <path d="M 705 380
-           C 690 300 585 285 505 320
-           C 410 362 405 455 505 500
-           C 610 548 640 640 560 700
-           C 480 752 360 735 320 665"
-        fill="none" stroke="url(#sGold)" stroke-width="112"
-        stroke-linecap="round" stroke-linejoin="round"/>
-
-  <!-- arrow leading shaft + head IN FRONT of the S (so it pierces through) -->
-  <path d="M 648 410 C 726 388 782 346 828 286"
-        fill="none" stroke="url(#arr)" stroke-width="60" stroke-linecap="round"/>
-  <!-- arrowhead -->
-  <path d="M 862 250 L 776 268 L 820 344 Z" fill="#F26B2A"/>
+  <!-- arrow shaft behind -->
+  <path d="M 220 726 C 350 706 384 566 478 544 C 574 522 560 414 668 392 C 730 379 792 340 842 274"
+        fill="none" stroke="url(#a)" stroke-width="66" stroke-linecap="round"/>
+  <!-- bold confident S -->
+  <path d="M 712 372 C 700 292 590 276 508 312 C 404 352 402 452 512 500 C 624 548 654 648 566 710 C 480 764 356 744 314 668"
+        fill="none" stroke="url(#g)" stroke-width="122" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- arrow tip in front + head -->
+  <path d="M 654 400 C 732 378 794 338 842 274" fill="none" stroke="url(#a)" stroke-width="66" stroke-linecap="round"/>
+  <path d="M 884 232 L 788 252 L 836 336 Z" fill="#F5732E"/>
 </svg>
