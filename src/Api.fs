@@ -53,6 +53,18 @@ let buildReq provider apiKey (modelId: string) system (w: Widget) (userText: str
            userText = userText
            imageDataUrl = w.Capture.ImageDataUrl |}
 
+/// One-shot classifier: is the captured region primarily code?
+let buildClassifyReq (apiKey: string) (cap: Capture) : obj =
+    box
+        {| provider = "anthropic"
+           apiKey = apiKey
+           model = DEFAULT_ANTHROPIC_MODEL
+           system = "You are a classifier. Reply with exactly one word — CODE if the attached image is primarily source code or a code block, otherwise TEXT. No other words."
+           maxTokens = 5
+           history = ([||]: obj [])
+           userText = "Classify the attached region."
+           imageDataUrl = cap.ImageDataUrl |}
+
 let mergeSummary (w: Widget) : string =
     let lastA =
         w.Messages

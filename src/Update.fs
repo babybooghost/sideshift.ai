@@ -24,6 +24,17 @@ let private keyOpt (r: obj) : string option =
     let k = r?key
     if isNull k then None else Some(string k)
 
+let private classifyCmd apiKey (cap: SideShift.Types.Capture) : Cmd<Msg> =
+    [ fun dispatch ->
+        let req = SideShift.Api.buildClassifyReq apiKey cap
+        let buf = System.Text.StringBuilder()
+        Interop.streamChat req (fun ev ->
+            match string (ev?("type")) with
+            | "delta" -> buf.Append(string ev?text) |> ignore
+            | "done" -> dispatch (PendingClassified((buf.ToString().ToUpper()).Contains "CODE"))
+            | _ -> ())
+        |> ignore ]
+
 let private streamCmd req (id: int) : Cmd<Msg> =
     [ fun dispatch ->
         Interop.streamChat req (fun ev ->
@@ -119,6 +130,7 @@ let init () : Model * Cmd<Msg> =
       CaptureMode = false
       Screenshot = None
       Pending = None
+      PendingCode = false
       Drag = None
       Resize = None
       Closing = None
@@ -199,9 +211,16 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
         | _ ->
             { model with CaptureMode = false; Screenshot = None }, effect (fun () -> Interop.setIgnoreMouse true)
     | RegionReady cap ->
-        { model with Screenshot = None; Pending = Some(cap, cap.X + cap.W, cap.Y) }, Cmd.none
+        let m2 = { model with Screenshot = None; Pending = Some(cap, cap.X + cap.W, cap.Y); PendingCode = false }
+        match model.AnthropicKey with
+        | Some k -> m2, classifyCmd k cap
+        | None -> m2, Cmd.none
+    | PendingClassified isCode ->
+        match model.Pending with
+        | Some _ -> { model with PendingCode = isCode }, Cmd.none
+        | None -> model, Cmd.none
     | DismissPending ->
-        { model with Pending = None }, effect (fun () -> Interop.setIgnoreMouse true)
+        { model with Pending = None; PendingCode = false }, effect (fun () -> Interop.setIgnoreMouse true)
     | QuickAction mode ->
         match model.Pending with
         | None -> model, Cmd.none
@@ -226,7 +245,7 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                   Z = z
                   Minimized = false
                   Color = palette.[id % palette.Length] }
-            let model2 = { model with Widgets = w :: model.Widgets; NextId = id + 1; TopZ = z; Pending = None }
+            let model2 = { model with Widgets = w :: model.Widgets; NextId = id + 1; TopZ = z; Pending = None; PendingCode = false }
             match SideShift.Api.firstPrompt mode with
             | Some p ->
                 let model3 = mapWidget id (fun x -> { x with Input = p }) model2

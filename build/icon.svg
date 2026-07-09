@@ -1,26 +1,34 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="g" x1="360" y1="230" x2="660" y2="800" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#F5B23B"/>
-      <stop offset="0.5" stop-color="#EE8A2A"/>
-      <stop offset="1" stop-color="#E1531B"/>
+    <linearGradient id="sGold" x1="320" y1="300" x2="700" y2="740" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F8C64C"/>
+      <stop offset="1" stop-color="#E68A26"/>
     </linearGradient>
-    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FBF6EC"/>
-      <stop offset="1" stop-color="#F3E7D2"/>
+    <linearGradient id="arr" x1="235" y1="720" x2="850" y2="255" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D8481A"/>
+      <stop offset="1" stop-color="#F26B2A"/>
     </linearGradient>
-    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#B25A12" flood-opacity="0.28"/>
-    </filter>
   </defs>
 
-  <rect x="0" y="0" width="1024" height="1024" rx="228" ry="228" fill="url(#bg)"/>
-  <rect x="6" y="6" width="1012" height="1012" rx="222" ry="222" fill="none" stroke="#E7D3AE" stroke-width="4"/>
+  <!-- arrow shaft BEHIND the S -->
+  <path d="M 235 712
+           C 360 694 388 566 476 546
+           C 566 526 560 424 662 402
+           C 724 388 780 348 828 286"
+        fill="none" stroke="url(#arr)" stroke-width="60" stroke-linecap="round"/>
 
-  <!-- S spine: two tangent circular arcs, thick round-cap stroke -->
-  <path d="M 636 268
-           A 150 150 0 1 0 512 512
-           A 150 150 0 1 1 388 756"
-        fill="none" stroke="url(#g)" stroke-width="132"
-        stroke-linecap="round" filter="url(#sh)"/>
+  <!-- brushstroke S (gold) — the colored subject, transparent bg -->
+  <path d="M 705 380
+           C 690 300 585 285 505 320
+           C 410 362 405 455 505 500
+           C 610 548 640 640 560 700
+           C 480 752 360 735 320 665"
+        fill="none" stroke="url(#sGold)" stroke-width="112"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- arrow leading shaft + head IN FRONT of the S (so it pierces through) -->
+  <path d="M 648 410 C 726 388 782 346 828 286"
+        fill="none" stroke="url(#arr)" stroke-width="60" stroke-linecap="round"/>
+  <!-- arrowhead -->
+  <path d="M 862 250 L 776 268 L 820 344 Z" fill="#F26B2A"/>
 </svg>

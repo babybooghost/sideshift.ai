@@ -58,6 +58,7 @@ type Model =
       CaptureMode: bool
       Screenshot: (string * float * float * float) option // dataUrl, w, h, scale
       Pending: (Capture * float * float) option            // capture + action-bar x,y
+      PendingCode: bool                                    // region auto-detected as code
       Drag: (int * float * float) option                   // widgetId, offsetX, offsetY
       Resize: int option                                   // widgetId being resized
       Closing: int option                                  // widget showing merge/discard menu
@@ -79,6 +80,7 @@ type Msg =
     | CaptureCancelled
     | RegionDrawn of float * float * float * float // overlay-css rect: x, y, w, h
     | RegionReady of Capture
+    | PendingClassified of bool
     | QuickAction of WidgetMode
     | DismissPending
     // widget lifecycle
