@@ -39,6 +39,7 @@ let setTitle (t: string) : unit = jsNative
 
 let onSelection (cb: string -> unit) : unit = bridge?onSelection (cb)
 let onToast (cb: string -> unit) : unit = bridge?onToast (cb)
+let onInstantAsk (cb: obj -> unit) : unit = bridge?onInstantAsk (cb)
 let onToggleCapture (cb: unit -> unit) : unit = bridge?onToggleCapture (cb)
 let onNudge (cb: float -> float -> unit) : unit = bridge?onNudge (System.Func<float, float, unit>(cb))
 let onOpenSettings (cb: unit -> unit) : unit = bridge?onOpenSettings (cb)

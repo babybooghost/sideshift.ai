@@ -130,6 +130,59 @@ ipcMain.on("set-ignore-mouse", (_e, ignore) => {
 // The renderer crops the user-selected region locally, so we never ship more
 // pixels than needed and nothing leaves the machine except the final crop.
 const SCREEN_PERM_MSG = "Screen Recording permission is off. Grant it in System Settings > Privacy & Security > Screen Recording, then reopen SideShift.";
+
+// Capture the primary display as a data URL, downscaled to maxW (JPEG for payload
+// sanity). Returns null when permission is missing / capture fails.
+async function captureDisplay(maxW, quality) {
+  if (process.platform === "darwin" &&
+      typeof systemPreferences.getMediaAccessStatus === "function" &&
+      systemPreferences.getMediaAccessStatus("screen") === "denied") return null;
+  try {
+    const primary = screen.getPrimaryDisplay();
+    const { width, height } = primary.size;
+    const scale = primary.scaleFactor || 1;
+    const sources = await desktopCapturer.getSources({
+      types: ["screen"],
+      thumbnailSize: { width: Math.round(width * scale), height: Math.round(height * scale) }
+    });
+    const src = sources.find((s) => s.display_id === String(primary.id)) || sources[0];
+    if (!src || src.thumbnail.isEmpty()) return null;
+    let img = src.thumbnail;
+    if (img.getSize().width > maxW) img = img.resize({ width: maxW });
+    return "data:image/jpeg;base64," + img.toJPEG(quality).toString("base64");
+  } catch { return null; }
+}
+
+// --- Live Context: rolling buffer of recent screen frames ------------------
+// Frames live in RAM only, are never written to disk, and are only sent to the
+// model when the user explicitly asks a question. This is what makes the app
+// "already know" what is on screen the moment it is invoked.
+const liveCtx = { enabled: true, frames: [], timer: null };
+async function liveCtxTick() {
+  if (!liveCtx.enabled) return;
+  const f = await captureDisplay(800, 55);
+  if (f) {
+    liveCtx.frames.push(f);
+    if (liveCtx.frames.length > 3) liveCtx.frames.shift();
+  }
+}
+function setLiveCtx(on) {
+  liveCtx.enabled = on;
+  if (liveCtx.timer) { clearInterval(liveCtx.timer); liveCtx.timer = null; }
+  if (!on) { liveCtx.frames = []; return; }
+  liveCtx.timer = setInterval(liveCtxTick, 6000);
+}
+
+// One keystroke, no region dragging: grab the whole screen now, attach the recent
+// context frames, and open a chat that already sees everything.
+async function instantAsk() {
+  const shot = await captureDisplay(1568, 78);
+  if (!shot) { openSettingsWindow(SCREEN_PERM_MSG); return; }
+  if (overlay && !overlay.isDestroyed()) {
+    overlay.show();
+    overlay.webContents.send("instant-ask", { dataUrl: shot, ctx: liveCtx.enabled ? liveCtx.frames.slice(-3) : [] });
+  }
+}
 ipcMain.handle("capture-screen", async () => {
   // Only refuse when the permission is *explicitly denied*. On 'not-determined'
   // (fresh install) we must still call desktopCapturer — that call is what registers
@@ -461,12 +514,16 @@ app.whenReady().then(() => {
 
   createOverlay();
 
-  // Toggle region-capture mode in the renderer.
-  globalShortcut.register("CommandOrControl+Shift+Space", () => {
+  // Primary, Cluely-style: instant whole-screen ask — no dragging.
+  globalShortcut.register("CommandOrControl+Shift+Space", instantAsk);
+  // Region capture (precision tool) moved to its own chord.
+  globalShortcut.register("CommandOrControl+Shift+R", () => {
     if (overlay) overlay.webContents.send("hotkey:toggle-capture");
   });
   // Ask about the current selection (any app).
   globalShortcut.register("CommandOrControl+Shift+S", grabSelection);
+  // Start the rolling screen-context buffer.
+  setLiveCtx(true);
   // Hide/show the whole overlay (Cluely-style quick hide).
   const toggleHide = () => {
     if (!overlay) return;
@@ -500,8 +557,12 @@ app.whenReady().then(() => {
     tray = new Tray(timg);
     tray.setToolTip("SideShift AI");
     tray.setContextMenu(Menu.buildFromTemplate([
-      { label: "Capture region", accelerator: "CommandOrControl+Shift+Space", click: capture },
+      { label: "Ask about my screen", accelerator: "CommandOrControl+Shift+Space", click: instantAsk },
+      { label: "Capture a region", accelerator: "CommandOrControl+Shift+R", click: capture },
       { label: "Ask about highlighted text", accelerator: "CommandOrControl+Shift+S", click: grabSelection },
+      { type: "separator" },
+      { label: "Live context (recent screen frames, in memory only)", type: "checkbox", checked: true,
+        click: (item) => setLiveCtx(item.checked) },
       { label: "Show / hide overlay", accelerator: "CommandOrControl+\\", click: toggleHide },
       { label: "Settings…", click: openSettings },
       { type: "separator" },
@@ -517,7 +578,8 @@ app.whenReady().then(() => {
     { label: app.name, submenu: [
       { role: "about" }, { type: "separator" },
       { label: "Settings…", accelerator: "CommandOrControl+,", click: openSettings },
-      { label: "Capture", accelerator: "CommandOrControl+Shift+Space", click: capture },
+      { label: "Ask about my screen", accelerator: "CommandOrControl+Shift+Space", click: instantAsk },
+      { label: "Capture a region", accelerator: "CommandOrControl+Shift+R", click: capture },
       { type: "separator" },
       { role: "hide" }, { role: "quit" }
     ]},

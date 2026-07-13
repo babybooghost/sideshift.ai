@@ -28,6 +28,7 @@ let private subscribe (_: Model) : Sub<Msg> =
               wire Interop.installHitTest
               wire (fun () -> Interop.onToggleCapture (fun () -> dispatch ToggleCapture))
               wire (fun () -> Interop.onSelection (fun t -> dispatch (SelectionCaptured t)))
+              wire (fun () -> Interop.onInstantAsk (fun p -> dispatch (InstantAsk p)))
               wire (fun () -> Interop.onToast (fun m -> dispatch (ShowToast m)))
               wire (fun () -> Interop.onNudge (fun dx dy -> dispatch (NudgeFocused(dx, dy))))
               wire (fun () -> Interop.onOpenSettings (fun () -> dispatch OpenSettings))

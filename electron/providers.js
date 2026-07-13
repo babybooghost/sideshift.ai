@@ -46,9 +46,14 @@ async function* parseSSE(res, extract) {
   }
 }
 
-async function* anthropicStream({ apiKey, model, system, history, userText, imageDataUrl, maxTokens, webGrounded }) {
+async function* anthropicStream({ apiKey, model, system, history, userText, imageDataUrl, maxTokens, webGrounded, contextImages }) {
   const messages = (history || []).map((h) => ({ role: h.role, content: h.text }));
   const content = [{ type: "text", text: userText }];
+  // Live-context frames (recent screen states) come before the current shot so the
+  // model reads them chronologically.
+  for (const c of Array.isArray(contextImages) ? contextImages : []) {
+    content.push({ type: "image", source: { type: "base64", media_type: mediaTypeOf(c), data: b64(c) } });
+  }
   if (imageDataUrl) {
     content.push({
       type: "image",
@@ -120,11 +125,14 @@ async function* anthropicStream({ apiKey, model, system, history, userText, imag
   }
 }
 
-async function* openrouterStream({ apiKey, model, system, history, userText, imageDataUrl, maxTokens }) {
+async function* openrouterStream({ apiKey, model, system, history, userText, imageDataUrl, maxTokens, contextImages }) {
   const messages = [];
   if (system) messages.push({ role: "system", content: system });
   for (const h of history || []) messages.push({ role: h.role, content: h.text });
   const content = [{ type: "text", text: userText }];
+  for (const c of Array.isArray(contextImages) ? contextImages : []) {
+    content.push({ type: "image_url", image_url: { url: c } });
+  }
   if (imageDataUrl) content.push({ type: "image_url", image_url: { url: imageDataUrl } });
   messages.push({ role: "user", content });
 

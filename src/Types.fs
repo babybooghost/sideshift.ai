@@ -41,6 +41,8 @@ type Widget =
       Mode: WidgetMode
       Title: string
       Capture: Capture
+      // recent live-context frames (RAM only, not persisted); sent with the first turn
+      CtxImages: string list
       Messages: ChatMsg list
       Input: string
       Streaming: bool
@@ -124,6 +126,7 @@ type Msg =
     | ScreenshotReady of string * float * float * float
     | CaptureFailed of string
     | SelectionCaptured of string // highlighted text grabbed via Cmd+Shift+S
+    | InstantAsk of obj           // whole-screen shot + live-context frames from main
     | ShowToast of string
     | ClearToast
     | CaptureCancelled

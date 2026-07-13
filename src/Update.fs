@@ -157,6 +157,7 @@ let private parseWidget (o: obj) : Widget =
       Capture = { ImageDataUrl = unbox o?img
                   Text = (if isNil o?ctext then "" else unbox o?ctext)
                   X = unbox o?cx; Y = unbox o?cy; W = unbox o?cw; H = unbox o?ch }
+      CtxImages = [] // live-context frames are RAM-only, never restored
       Messages = msgs |> Array.map (fun m -> { Role = unbox m?role; Text = unbox m?text }) |> Array.toList
       Input = unbox o?input
       Streaming = false
@@ -427,6 +428,41 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
     | ShowToast m ->
         { model with Toast = Some m }, [ fun dispatch -> Interop.setTimeoutMs 3400 (fun () -> dispatch ClearToast) ]
     | ClearToast -> { model with Toast = None }, Cmd.none
+    | InstantAsk payload ->
+        // Whole-screen shot + recent live-context frames: open a chat that already
+        // sees the screen. No pending bar — this is the zero-friction primary flow.
+        let shot: string = unbox payload?dataUrl
+        let ctx: string list =
+            if isNil payload?ctx then []
+            else (unbox payload?ctx: obj []) |> Array.map (fun c -> (unbox c: string)) |> Array.toList
+        let id = model.NextId
+        let z = model.TopZ + 1
+        let vw = Interop.innerWidth ()
+        let vh = Interop.innerHeight ()
+        let w =
+            { Id = id
+              Mode = Ask
+              Title = "Screen"
+              Capture = { ImageDataUrl = shot; Text = ""; X = 0.0; Y = 0.0; W = 0.0; H = 0.0 }
+              CtxImages = ctx
+              Messages = []
+              Input = ""
+              Streaming = false
+              StreamBuf = ""
+              Error = None
+              Via = ""
+              PosX = max 8.0 (vw - 420.0)
+              PosY = min 84.0 (max 8.0 (vh - 460.0))
+              Width = 400.0
+              Height = 440.0
+              Z = z
+              Minimized = false
+              Color = palette.[id % palette.Length] }
+        let m2 =
+            { model with
+                Widgets = w :: model.Widgets; NextId = id + 1; TopZ = z
+                CaptureMode = false; Screenshot = None; Pending = None; PendingCode = false }
+        m2, Cmd.batch [ effect (fun () -> Interop.setIgnoreMouse false); saveCmd m2 ]
     | CaptureCancelled ->
         { model with CaptureMode = false; Screenshot = None }, effect (fun () -> Interop.setIgnoreMouse true)
     | RegionDrawn(x, y, w, h) ->
@@ -467,6 +503,7 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                   Mode = mode
                   Title = titleFor mode
                   Capture = cap
+                  CtxImages = []
                   Messages = []
                   Input = ""
                   Streaming = false

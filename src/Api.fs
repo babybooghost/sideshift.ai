@@ -150,7 +150,9 @@ let buildReq provider apiKey (modelId: string) system (webGrounded: bool) (w: Wi
            maxTokens = (if webGrounded then 2200 else 1500)
            history = history
            userText = userText
-           imageDataUrl = w.Capture.ImageDataUrl |}
+           imageDataUrl = w.Capture.ImageDataUrl
+           // live-context frames ride along on the FIRST turn only (token sanity)
+           contextImages = (if w.Messages.IsEmpty then w.CtxImages |> List.toArray else [||]) |}
 
 /// One-shot classifier: is the captured region primarily code?
 let buildClassifyReq (apiKey: string) (cap: Capture) : obj =
