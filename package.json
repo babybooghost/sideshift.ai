@@ -1,6 +1,6 @@
 {
   "name": "sideshift-ai",
-  "version": "0.1.2",
+  "version": "0.3.0",
   "description": "Screen-analysis AI overlay. Highlight anything on screen, open focused side-chats. App-agnostic, uses your own Anthropic API key.",
   "private": true,
   "author": "babybooghost",
