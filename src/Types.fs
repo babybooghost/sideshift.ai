@@ -19,6 +19,14 @@ type Theme =
 type ChatMsg = { Role: string; Text: string }
 
 /// A highlighted screen region + what we know about it.
+/// Truncate to n UTF-16 units without splitting a surrogate pair (broken glyph).
+let truncateSafe (n: int) (s: string) : string =
+    if s.Length <= n then s
+    else
+        let c = int s.[n - 1]
+        let cut = if c >= 0xD800 && c <= 0xDBFF then n - 1 else n
+        s.Substring(0, cut)
+
 type Capture =
     { ImageDataUrl: string // "" for text-selection captures (no pixels involved)
       Text: string         // highlighted text grabbed from the frontmost app, or ""
@@ -84,7 +92,8 @@ type Model =
       Drag: (int * float * float) option                   // widgetId, offsetX, offsetY
       Resize: int option                                   // widgetId being resized
       Closing: int option                                  // widget showing merge/discard menu
-      SharedContext: string list }                         // merged side-quest summaries
+      SharedContext: string list                           // merged side-quest summaries
+      Toast: string option }                               // transient status pill (auto-clears)
 
 type Msg =
     | KeyLoaded of string * string option // name, value
@@ -115,6 +124,8 @@ type Msg =
     | ScreenshotReady of string * float * float * float
     | CaptureFailed of string
     | SelectionCaptured of string // highlighted text grabbed via Cmd+Shift+S
+    | ShowToast of string
+    | ClearToast
     | CaptureCancelled
     | RegionDrawn of float * float * float * float // overlay-css rect: x, y, w, h
     | RegionReady of Capture

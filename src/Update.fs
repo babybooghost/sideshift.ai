@@ -218,7 +218,8 @@ let init () : Model * Cmd<Msg> =
       Drag = None
       Resize = None
       Closing = None
-      SharedContext = [] },
+      SharedContext = []
+      Toast = None },
     Cmd.batch
         [ Cmd.OfPromise.perform Interop.loadKey "anthropic" (fun r -> KeyLoaded("anthropic", keyOpt r))
           Cmd.OfPromise.perform Interop.loadKey "openrouter" (fun r -> KeyLoaded("openrouter", keyOpt r))
@@ -410,7 +411,8 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
     | SelectionCaptured txt ->
         // Highlighted text grabbed from the frontmost app (Cmd+Shift+S): same action
         // bar as a region capture, centered near the top, no pixels involved.
-        let t = txt.Trim()
+        // Bound the size so a huge selection can't bloat every request + state.json.
+        let t = (truncateSafe 12000 txt).Trim()
         if t = "" then model, Cmd.none
         else
             let looksCode =
@@ -418,7 +420,13 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                 || t.Contains "def " || t.Contains "fun " || t.Contains "()"
             let cap = { ImageDataUrl = ""; Text = t; X = 0.0; Y = 0.0; W = 0.0; H = 0.0 }
             let ax = max 8.0 (Interop.innerWidth () / 2.0 - 150.0)
-            { model with Pending = Some(cap, ax, 96.0); PendingCode = looksCode }, Cmd.none
+            // clear any half-open capture crosshair so the pending bar isn't buried
+            // under the full-screen selector scrim; make the overlay clickable.
+            { model with CaptureMode = false; Screenshot = None; Pending = Some(cap, ax, 96.0); PendingCode = looksCode },
+            effect (fun () -> Interop.setIgnoreMouse false)
+    | ShowToast m ->
+        { model with Toast = Some m }, [ fun dispatch -> Interop.setTimeoutMs 3400 (fun () -> dispatch ClearToast) ]
+    | ClearToast -> { model with Toast = None }, Cmd.none
     | CaptureCancelled ->
         { model with CaptureMode = false; Screenshot = None }, effect (fun () -> Interop.setIgnoreMouse true)
     | RegionDrawn(x, y, w, h) ->
@@ -438,16 +446,22 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
         | None -> m2, Cmd.none
     | PendingClassified isCode ->
         match model.Pending with
-        | Some _ -> { model with PendingCode = isCode }, Cmd.none
-        | None -> model, Cmd.none
+        // only apply an image classify to an image pending; a late result must never
+        // relabel a text selection that replaced the region while the classify was in flight
+        | Some(cap, _, _) when cap.Text = "" -> { model with PendingCode = isCode }, Cmd.none
+        | _ -> model, Cmd.none
     | DismissPending ->
         { model with Pending = None; PendingCode = false }, effect (fun () -> Interop.setIgnoreMouse true)
     | QuickAction mode ->
         match model.Pending with
         | None -> model, Cmd.none
-        | Some(cap, _, _) ->
+        | Some(cap, ax, ay) ->
             let id = model.NextId
             let z = model.TopZ + 1
+            // text selections have no origin rect; spawn the widget where the action
+            // bar was (centered top) instead of the top-left corner (0,0)
+            let baseX = if cap.Text <> "" then ax else cap.X
+            let baseY = if cap.Text <> "" then ay + 8.0 else cap.Y + 10.0
             let w =
                 { Id = id
                   Mode = mode
@@ -459,8 +473,8 @@ let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
                   StreamBuf = ""
                   Error = None
                   Via = ""
-                  PosX = cap.X
-                  PosY = cap.Y + 10.0
+                  PosX = baseX
+                  PosY = baseY
                   Width = 380.0
                   Height = 440.0
                   Z = z

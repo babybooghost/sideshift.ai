@@ -608,7 +608,7 @@ let private widgetView (model: Model) (w: Widget) dispatch =
                                          style.padding (7, 10); style.custom ("border", sprintf "1px solid %s" border)
                                          style.custom ("borderLeft", sprintf "3px solid %s" accent)
                                          style.custom ("whiteSpace", "pre-wrap"); style.custom ("wordBreak", "break-word") ]
-                            prop.text (if w.Capture.Text.Length > 700 then w.Capture.Text.Substring(0, 700) + "…" else w.Capture.Text)
+                            prop.text (if w.Capture.Text.Length > 700 then truncateSafe 700 w.Capture.Text + "…" else w.Capture.Text)
                         ]
                 ]
             ]
@@ -788,5 +788,19 @@ let view (model: Model) dispatch =
                 if model.CaptureMode then CaptureSelector {| dispatch = dispatch |} else Html.none
 
                 dock dispatch
+
+                match model.Toast with
+                | Some t ->
+                    Html.div [
+                        // display-only, never intercepts clicks (no .ss-interactive)
+                        prop.style [ style.position.fixedRelativeToWindow; style.bottom 74; style.left (length.percent 50)
+                                     style.transform.translate (length.percent -50, length.px 0); style.custom ("zIndex", "6000000")
+                                     style.custom ("pointerEvents", "none"); style.maxWidth 460
+                                     style.custom ("background", raised); style.color textPri; style.padding (11, 16)
+                                     style.borderRadius 11; style.fontSize 13; style.lineHeight 1.4; style.textAlign.center
+                                     style.custom ("border", sprintf "1px solid %s" border); style.custom ("boxShadow", shadow) ]
+                        prop.text t
+                    ]
+                | None -> Html.none
             ]
         ]

@@ -22,7 +22,14 @@ function openSettingsWindow(errMsg) {
   if (settingsWin && !settingsWin.isDestroyed()) {
     settingsWin.show();
     settingsWin.focus();
-    if (errMsg) settingsWin.webContents.send("settings-error", errMsg);
+    if (errMsg) {
+      // if the window is still loading, the IPC send is dropped — wait for the page
+      if (settingsWin.webContents.isLoading())
+        settingsWin.webContents.once("did-finish-load", () => {
+          if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send("settings-error", errMsg);
+        });
+      else settingsWin.webContents.send("settings-error", errMsg);
+    }
     return;
   }
   settingsWin = new BrowserWindow({
@@ -122,14 +129,16 @@ ipcMain.on("set-ignore-mouse", (_e, ignore) => {
 // Returns a PNG data URL of the primary display at native resolution.
 // The renderer crops the user-selected region locally, so we never ship more
 // pixels than needed and nothing leaves the machine except the final crop.
+const SCREEN_PERM_MSG = "Screen Recording permission is off. Grant it in System Settings > Privacy & Security > Screen Recording, then reopen SideShift.";
 ipcMain.handle("capture-screen", async () => {
-  // On macOS a denied Screen Recording permission yields either no sources or a
-  // blank thumbnail. Detect it and return a structured error so the renderer can
-  // point the user at System Settings instead of silently capturing black.
+  // Only refuse when the permission is *explicitly denied*. On 'not-determined'
+  // (fresh install) we must still call desktopCapturer — that call is what registers
+  // the app in the Screen Recording list and triggers the macOS prompt. Refusing
+  // early left new users with an app that never appeared in the pane we point them to.
   if (process.platform === "darwin" &&
       typeof systemPreferences.getMediaAccessStatus === "function" &&
-      systemPreferences.getMediaAccessStatus("screen") !== "granted") {
-    return { ok: false, error: "screen-permission", message: "Screen Recording permission is off. Grant it in System Settings > Privacy & Security > Screen Recording, then reopen SideShift." };
+      systemPreferences.getMediaAccessStatus("screen") === "denied") {
+    return { ok: false, error: "screen-permission", message: SCREEN_PERM_MSG };
   }
   try {
     const primary = screen.getPrimaryDisplay();
@@ -141,7 +150,8 @@ ipcMain.handle("capture-screen", async () => {
     });
     const src = sources.find((s) => s.display_id === String(primary.id)) || sources[0];
     if (!src || src.thumbnail.isEmpty()) {
-      return { ok: false, error: "no-capture", message: "Could not read the screen. Check Screen Recording permission and try again." };
+      // empty thumbnail on macOS == permission not yet granted (app is now registered)
+      return { ok: false, error: "screen-permission", message: SCREEN_PERM_MSG };
     }
     return {
       ok: true,
@@ -206,9 +216,19 @@ ipcMain.handle("save-prefs", (_e, prefs) => {
   } catch (e) { return { ok: false, error: String(e?.message || e) }; }
 });
 
+const PREF_KEYS = ["accent", "opacity", "theme", "webVerify", "critic", "googleEmail"];
 ipcMain.handle("save-state", (_e, state) => {
-  try { fs.writeFileSync(STATE_FILE(), JSON.stringify(state)); return { ok: true }; }
-  catch (e) { return { ok: false, reason: String(e) }; }
+  try {
+    // Preferences are owned by the settings window (save-prefs). An overlay workspace
+    // save must never revert a fresher pref written between its broadcast and this write,
+    // so keep whatever pref keys are already on disk.
+    let cur = {};
+    try { cur = JSON.parse(fs.readFileSync(STATE_FILE(), "utf8")) || {}; } catch {}
+    const merged = { ...state };
+    for (const k of PREF_KEYS) if (k in cur) merged[k] = cur[k];
+    fs.writeFileSync(STATE_FILE(), JSON.stringify(merged));
+    return { ok: true };
+  } catch (e) { return { ok: false, reason: String(e) }; }
 });
 
 ipcMain.handle("load-state", () => {
@@ -253,10 +273,13 @@ async function googleSignIn(clientId, clientSecret) {
     server = http.createServer((req, res) => {
       const u = new URL(req.url, redirect);
       if (u.pathname !== "/callback") { res.writeHead(404); res.end(); return; }
-      clearTimeout(timer);
       const gotState = u.searchParams.get("state");
       const gotCode = u.searchParams.get("code");
       const gotErr = u.searchParams.get("error");
+      // Ignore stray/prefetch hits to /callback carrying neither a code nor an error
+      // (e.g. a favicon or browser prefetch) so they don't abort a live sign-in.
+      if (!gotCode && !gotErr) { res.writeHead(204); res.end(); return; }
+      clearTimeout(timer);
       const ok = !gotErr && !!gotCode && gotState === state;
       // Show the page that matches what actually happened (was always "Signed in",
       // even when the user denied consent). charset is required: without it the
@@ -365,29 +388,69 @@ ipcMain.on("chat-stream", async (event, req) => {
   }
 });
 
-// Grab the highlighted text from the frontmost app: simulate Cmd+C via System
-// Events (needs Accessibility), read the clipboard, then restore it. This is the
+// Transient status back to the user: in-app overlay pill (always visible, works on
+// unsigned/ad-hoc builds where OS notifications are silently dropped).
+function toast(msg) {
+  if (overlay && !overlay.isDestroyed()) { overlay.show(); overlay.webContents.send("toast", msg); }
+}
+
+// Grab the highlighted text from the frontmost app: simulate Copy (needs Accessibility
+// on macOS), read the clipboard, then restore its FULL previous contents. This is the
 // Cluely-style "read what I selected" flow — no reverse engineering, plain OS APIs.
 function grabSelection() {
   if (process.platform === "darwin" && !systemPreferences.isTrustedAccessibilityClient(true)) {
     openSettingsWindow("To read highlighted text, allow SideShift under System Settings > Privacy & Security > Accessibility, then press Cmd+Shift+S again.");
     return;
   }
-  const prev = clipboard.readText();
-  clipboard.clear();
-  execFile("osascript", ["-e", 'tell application "System Events" to keystroke "c" using {command down}'], (err) => {
-    setTimeout(() => {
+  if (process.platform !== "darwin" && process.platform !== "win32") {
+    toast("Reading highlighted text is available on macOS and Windows.");
+    return;
+  }
+
+  // Snapshot every format so images / rich text survive — restore them all afterwards.
+  const prevText = clipboard.readText();
+  const prevHtml = clipboard.readHTML();
+  const prevRtf = clipboard.readRTF();
+  const prevImage = clipboard.readImage();
+  const restore = () => {
+    try {
+      if (prevImage && !prevImage.isEmpty()) clipboard.writeImage(prevImage);
+      else if (prevHtml || prevRtf) clipboard.write({ text: prevText, html: prevHtml || undefined, rtf: prevRtf || undefined });
+      else if (prevText) clipboard.writeText(prevText);
+      else clipboard.clear();
+    } catch {}
+  };
+
+  // A sentinel lets us tell "copy produced nothing" apart from "clipboard unchanged".
+  const sentinel = " ss " + Date.now();
+  clipboard.writeText(sentinel);
+
+  const onIssued = (err) => {
+    if (err) { restore(); toast("Could not read the selection. Try again."); return; }
+    // Poll instead of a fixed deadline: a slow Cmd+C no longer yields a false miss.
+    const started = Date.now();
+    const tick = () => {
       const sel = clipboard.readText();
-      if (prev) clipboard.writeText(prev); else clipboard.clear();
-      if (err) {
-        openSettingsWindow("Could not read the selection: " + String(err.message || err));
-      } else if (sel && sel.trim()) {
-        if (overlay) { overlay.show(); overlay.webContents.send("selection-captured", sel); }
-      } else {
-        new Notification({ title: "SideShift AI", body: "No highlighted text found. Select some text, then press Cmd+Shift+S." }).show();
+      const done = sel !== sentinel;
+      if (done || Date.now() - started > 1000) {
+        restore();
+        const text = done ? sel : "";
+        if (text && text.trim()) {
+          if (overlay) { overlay.show(); overlay.webContents.send("selection-captured", text); }
+        } else {
+          toast("No highlighted text found. Select some text, then press " + (process.platform === "darwin" ? "⌘⇧S" : "Ctrl+Shift+S") + ".");
+        }
+        return;
       }
-    }, 320);
-  });
+      setTimeout(tick, 45);
+    };
+    setTimeout(tick, 55);
+  };
+
+  if (process.platform === "darwin")
+    execFile("osascript", ["-e", 'tell application "System Events" to keystroke "c" using {command down}'], onIssued);
+  else
+    execFile("powershell", ["-NoProfile", "-Command", "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^c')"], onIssued);
 }
 
 app.whenReady().then(() => {

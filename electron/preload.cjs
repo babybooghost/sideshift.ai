@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld("sideshift", {
   // Global-hotkey events into the Elmish loop.
   onToggleCapture: (cb) => ipcRenderer.on("hotkey:toggle-capture", () => cb()),
   onSelection: (cb) => ipcRenderer.on("selection-captured", (_e, text) => cb(text)),
+  onToast: (cb) => ipcRenderer.on("toast", (_e, msg) => cb(msg)),
   onNudge: (cb) => ipcRenderer.on("hotkey:nudge", (_e, dx, dy) => cb(dx, dy)),
   onOpenSettings: (cb) => ipcRenderer.on("menu:open-settings", () => cb()),
   openScreenPrivacy: () => ipcRenderer.invoke("open-screen-privacy"),

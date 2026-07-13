@@ -38,6 +38,7 @@ let onSettingsError (cb: string -> unit) : unit = bridge?onSettingsError (cb)
 let setTitle (t: string) : unit = jsNative
 
 let onSelection (cb: string -> unit) : unit = bridge?onSelection (cb)
+let onToast (cb: string -> unit) : unit = bridge?onToast (cb)
 let onToggleCapture (cb: unit -> unit) : unit = bridge?onToggleCapture (cb)
 let onNudge (cb: float -> float -> unit) : unit = bridge?onNudge (System.Func<float, float, unit>(cb))
 let onOpenSettings (cb: unit -> unit) : unit = bridge?onOpenSettings (cb)
@@ -51,6 +52,9 @@ let loadState () : JS.Promise<obj> = bridge?loadState ()
 
 [<Emit("window.innerWidth")>]
 let innerWidth () : float = jsNative
+
+[<Emit("setTimeout($1, $0)")>]
+let setTimeoutMs (ms: int) (cb: unit -> unit) : unit = jsNative
 
 [<Emit("window.innerHeight")>]
 let innerHeight () : float = jsNative
